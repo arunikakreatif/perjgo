@@ -206,7 +206,7 @@ const Laporan: React.FC = () => {
     return (
       <div className="max-w-4xl mx-auto animate-in fade-in zoom-in duration-300 pb-20">
          <div className="bg-white border border-outline-variant rounded-3xl shadow-xl overflow-hidden">
-            <div className="bg-amber-600 p-8 text-white relative">
+            <div className="bg-primary p-8 text-white relative">
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-2xl font-black tracking-tight mb-2 uppercase">Input Hasil Laporan Perjalanan</h2>
@@ -250,7 +250,7 @@ const Laporan: React.FC = () => {
                             type="button"
                             disabled={generating || !selectedSPPD.laporan1}
                             onClick={handleGenerateAI}
-                            className="flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-all shadow-sm active:scale-95 disabled:opacity-50 border border-amber-200"
+                            className="flex items-center gap-2 px-3 py-1 bg-primary/5 text-primary rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-primary/10 transition-all shadow-sm active:scale-95 disabled:opacity-50 border border-primary/20"
                           >
                             {generating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
                             {generating ? 'Sempurnakan...' : '🤖 Sempurnakan Laporan'}
@@ -262,7 +262,7 @@ const Laporan: React.FC = () => {
                         value={(selectedSPPD as any)[`laporan${n}`] || ''}
                         onChange={e => setSelectedSPPD({...selectedSPPD, [`laporan${n}`]: e.target.value})}
                         rows={3} 
-                        className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-amber-600 shadow-sm" 
+                        className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-primary shadow-sm" 
                         placeholder={n === 1 ? "Contoh: Menyerahkan laporan bantuan modal..." : `Masukkan poin laporan ke-${n}...`} 
                       />
                     </div>
@@ -273,7 +273,7 @@ const Laporan: React.FC = () => {
                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-loose">Foto Dokumentasi</label>
                        <div className={cn(
                           "relative aspect-video border-2 border-dashed border-outline-variant rounded-2xl overflow-hidden transition-all group flex flex-col items-center justify-center gap-3",
-                          selectedSPPD.fotoUrl ? "border-solid border-amber-600" : "bg-surface hover:bg-white hover:border-amber-600"
+                          selectedSPPD.fotoUrl ? "border-solid border-primary" : "bg-surface hover:bg-white hover:border-primary"
                         )}>
                           {selectedSPPD.fotoUrl ? (
                             <>
@@ -290,8 +290,8 @@ const Laporan: React.FC = () => {
                             </>
                           ) : uploading ? (
                             <div className="flex flex-col items-center gap-2">
-                              <Loader2 className="animate-spin text-amber-600" />
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600">Mengunggah...</span>
+                              <Loader2 className="animate-spin text-primary" />
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Mengunggah...</span>
                             </div>
                           ) : (
                             <div className="text-center group-hover:scale-110 transition-transform">
@@ -305,7 +305,7 @@ const Laporan: React.FC = () => {
                        {/* ELEGANT PROGRESS LINE */}
                        {uploading && (
                          <div className="w-full h-1 bg-surface border border-outline-variant rounded-full mt-2 overflow-hidden">
-                           <div className="h-full bg-amber-600 animate-[progress_2s_infinite_linear]" style={{ width: '40%' }}></div>
+                           <div className="h-full bg-primary animate-[progress_2s_infinite_linear]" style={{ width: '40%' }}></div>
                          </div>
                        )}
                     </div>
@@ -316,7 +316,7 @@ const Laporan: React.FC = () => {
                            value={selectedSPPD.caption || ''}
                            onChange={e => setSelectedSPPD({...selectedSPPD, caption: e.target.value})}
                            rows={5} 
-                           className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-amber-600 shadow-sm resize-none" 
+                           className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-primary shadow-sm resize-none" 
                            placeholder="Contoh: Foto bersama narasumber..." 
                          />
                        </div>
@@ -325,7 +325,7 @@ const Laporan: React.FC = () => {
                        <div className="flex flex-col sm:flex-row gap-3 pt-2">
                           <button 
                            disabled={saving || printing || uploading}
-                           className="flex-1 px-6 py-4 bg-amber-600 text-white rounded-2xl font-black tracking-widest uppercase text-[10px] shadow-lg hover:bg-amber-700 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2.5"
+                           className="flex-1 px-6 py-4 bg-primary text-white rounded-2xl font-black tracking-widest uppercase text-[10px] shadow-lg hover:bg-primary/90 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2.5"
                           >
                             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                             {printing ? 'MENYIAPKAN PDF...' : saving ? 'MENYIMPAN...' : 'SIMPAN & CETAK'}
@@ -378,7 +378,7 @@ const Laporan: React.FC = () => {
 
       {/* Section: Needs Report */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2 text-amber-600">
+        <div className="flex items-center gap-2 text-primary">
           <AlertCircle size={20} />
           <h3 className="font-bold uppercase tracking-widest text-xs">Perlu Pengisian Laporan ({needsReport.length})</h3>
         </div>
@@ -394,7 +394,7 @@ const Laporan: React.FC = () => {
                 <span className="text-[10px] font-medium text-on-surface-variant tnum">{item.dateStart}</span>
                 <button 
                   onClick={() => handleOpenReport(item)}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 transition-colors"
                 >
                   Isi Laporan
                   <ArrowRight size={14} />
@@ -456,7 +456,7 @@ const Laporan: React.FC = () => {
                                   alert("Gagal cetak PDF: " + err.message);
                                 });
                             }}
-                            className="p-1.5 bg-surface border border-outline-variant rounded hover:bg-amber-600/5 text-amber-600 transition-all font-bold flex items-center gap-1 px-3"
+                            className="p-1.5 bg-surface border border-outline-variant rounded hover:bg-primary/5 text-primary transition-all font-bold flex items-center gap-1 px-3"
                             title="Cetak PDF"
                             disabled={printing}
                            >
@@ -465,7 +465,7 @@ const Laporan: React.FC = () => {
                            </button>
                            <button 
                             onClick={() => handleOpenReport(item)}
-                            className="p-1.5 bg-surface border border-outline-variant rounded hover:bg-amber-600/5 text-on-surface transition-all"
+                            className="p-1.5 bg-surface border border-outline-variant rounded hover:bg-primary/5 text-on-surface transition-all"
                             title="Edit Data"
                            >
                               <Edit3 size={16} />

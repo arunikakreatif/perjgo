@@ -115,8 +115,8 @@ const Pegawai: React.FC = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-outline-variant pb-6">
         <div>
-          <h2 className="text-3xl font-bold text-on-surface">Daftar Pegawai</h2>
-          <p className="text-on-surface-variant font-medium mt-1">Manajemen data personil dan otoritas akses sistem.</p>
+          <h2 className="text-3xl font-black text-primary tracking-tight">Daftar Pegawai</h2>
+          <p className="text-on-surface-variant/70 font-bold uppercase tracking-[0.15em] text-[10px] mt-2">Manajemen data personil dan otoritas akses sistem.</p>
         </div>
         {!showForm && (
           <button 
@@ -124,9 +124,9 @@ const Pegawai: React.FC = () => {
               setFormData({ name: '', nik: '', niap: '', position: '', pangkat: '', golongan: '', address: '' });
               setShowForm(true);
             }}
-            className="flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-lg font-bold hover:opacity-90 transition-all shadow-sm"
+            className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:opacity-90 transition-all shadow-lg shadow-primary/20"
           >
-            <UserPlus size={20} />
+            <UserPlus size={18} />
             Tambah Pegawai
           </button>
         )}
@@ -203,14 +203,14 @@ const Pegawai: React.FC = () => {
           {/* Stats Summary Area */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {[
-          { label: 'Total Pegawai', value: '24', color: 'border-t-primary' },
-          { label: 'Aktif Dinas', value: '5', color: 'border-t-secondary' },
-          { label: 'Jabatan Struktural', value: '12', color: 'border-t-outline' },
-          { label: 'Staff Teknis', value: '7', color: 'border-t-primary-container' },
+          { label: 'TOTAL PEGAWAI', value: '24', color: 'border-t-primary' },
+          { label: 'AKTIF DINAS', value: '5', color: 'border-t-secondary' },
+          { label: 'STRUKTURAL', value: '12', color: 'border-t-outline-variant' },
+          { label: 'STAFF TEKNIS', value: '7', color: 'border-t-outline-variant' },
         ].map((stat) => (
           <div key={stat.label} className={cn("bg-white p-6 border border-outline-variant rounded-xl border-t-4", stat.color)}>
-            <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{stat.label}</p>
-            <h3 className="text-2xl font-bold mt-2 tnum">{stat.value}</h3>
+            <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">{stat.label}</p>
+            <h3 className="text-3xl font-bold mt-3 tnum">{stat.value}</h3>
           </div>
         ))}
       </div>
@@ -231,26 +231,26 @@ const Pegawai: React.FC = () => {
         {/* Table Content */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-surface-container-low text-on-surface">
+            <thead className="bg-[#fcfdff] text-on-surface">
               <tr>
-                <th className="p-4 text-xs font-bold uppercase tracking-wider border-b border-outline-variant">No</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-wider border-b border-outline-variant">Nama</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-wider border-b border-outline-variant">NIK / NIAP</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-wider border-b border-outline-variant">Jabatan</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-wider border-b border-outline-variant">Alamat</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-wider border-b border-outline-variant text-right">Aksi</th>
+                <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] border-b border-outline-variant">No</th>
+                <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] border-b border-outline-variant">Nama</th>
+                <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] border-b border-outline-variant">NIK / NIAP</th>
+                <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] border-b border-outline-variant">Jabatan</th>
+                <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] border-b border-outline-variant">Alamat</th>
+                <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] border-b border-outline-variant text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/30 text-sm">
               {employees.map((emp, idx) => (
-                <tr key={emp.id} className="hover:bg-surface-container-low transition-colors group">
-                  <td className="p-4 tnum">{idx + 1}</td>
+                <tr key={emp.id} className="hover:bg-[#f8faff] transition-colors group">
+                  <td className="p-4 tnum font-bold text-on-surface-variant">{idx + 1}</td>
                   <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary-container/20 flex items-center justify-center text-primary font-bold text-xs">
+                    <div className="flex items-center gap-4">
+                      <div className="w-9 h-9 rounded-full bg-primary/5 flex items-center justify-center text-primary font-black text-xs border border-primary/10">
                         {emp.name.charAt(0)}
                       </div>
-                      <span className="font-bold text-on-surface">{emp.name}</span>
+                      <span className="font-black text-on-surface tracking-tight">{emp.name}</span>
                     </div>
                   </td>
                   <td className="p-4 text-on-surface-variant tnum">

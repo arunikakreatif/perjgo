@@ -6,21 +6,21 @@
   --color-primary: #570000;
   --color-primary-container: #800000;
   --color-on-primary: #ffffff;
-  --color-secondary: #545f73;
-  --color-secondary-container: #d5e0f8;
-  --color-tertiary: #1e263a;
-  --color-tertiary-container: #343c51;
+  --color-secondary: #0A1120;
+  --color-secondary-container: #162236;
+  --color-tertiary: #4EA8DE;
+  --color-tertiary-container: rgba(78, 168, 222, 0.1);
   --color-on-tertiary: #ffffff;
   --color-surface: #f8f9ff;
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #eff4ff;
-  --color-surface-container: #e5eeff;
-  --color-surface-container-high: #dce9ff;
-  --color-surface-container-highest: #d3e4fe;
+  --color-surface-container-low: #f1f5f9;
+  --color-surface-container: #ffffff;
+  --color-surface-container-high: #e2e8f0;
+  --color-surface-container-highest: #cbd5e1;
   --color-on-surface: #0b1c30;
   --color-on-surface-variant: #5a413d;
-  --color-outline: #8e706c;
-  --color-outline-variant: #e2bfb9;
+  --color-outline: #dee2e6;
+  --color-outline-variant: #f1f3f5;
 
   @keyframes progress {
     0% { transform: translateX(-100%); }

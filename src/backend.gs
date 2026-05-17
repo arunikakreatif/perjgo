@@ -1,28 +1,120 @@
 /**
- * perjadinGO - Backend Google Apps Script
- * Copy this code into your Google Apps Script project (Code.gs)
+ * perjadinGO - Backend Google Apps Script (Multi-Tenant Version)
  */
 
-const SPREADSHEEET_ID = "1DFUAr4cYppP9nxaB2pgP8n5Oug-O1pvEdrhptlGqwJA";
-const SS = SpreadsheetApp.openById(SPREADSHEEET_ID);
+// GANTI INI dengan ID Spreadsheet "Master" Anda
+const MASTER_SS_ID = "1DFUAr4cYppP9nxaB2pgP8n5Oug-O1pvEdrhptlGqwJA"; // Sementara pakai ini, harap buat Master Sheet baru
+
+// Global variable untuk Spreadsheet aktif (akan diisi secara dinamis)
+let SS_ID = MASTER_SS_ID;
+let ACTIVE_SS = null;
+
+function getSS() {
+  if (!ACTIVE_SS) {
+    try {
+      ACTIVE_SS = SpreadsheetApp.openById(SS_ID.toString().trim());
+    } catch (e) {
+      // Fallback: Jika gagal openById (mungkin sedang setting up atau ID salah), 
+      // gunakan Spreadsheet aktif jika script terikat (container-bound)
+      try {
+        ACTIVE_SS = SpreadsheetApp.getActiveSpreadsheet();
+      } catch (err) {
+        throw new Error("Gagal membuka Spreadsheet. Pastikan ID benar atau script dijalankan dari Spreadsheet: " + e.message);
+      }
+    }
+  }
+  return ACTIVE_SS;
+}
+
+/**
+ * LOGIN: Mencari ID Spreadsheet & ID Folder berdasarkan Kode Desa
+ */
+function loginByCode(villageCode) {
+  try {
+    const masterSS = SpreadsheetApp.openById(MASTER_SS_ID);
+    let sheet = masterSS.getSheetByName("Villages");
+    if (!sheet) {
+      // Auto-create sheet Villages jika belum ada di Master
+      sheet = masterSS.insertSheet("Villages");
+      sheet.appendRow(["Kode Desa", "Nama Desa", "Spreadsheet ID", "Folder ID", "Status"]);
+      return { status: "error", message: "Master Sheet baru dibuat. Silakan isi data desa." };
+    }
+    
+    const data = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] == villageCode && data[i][4] != "Inactive") {
+        return {
+          status: "success",
+          villageName: data[i][1],
+          ssId: data[i][2],
+          folderId: data[i][3],
+          villageCode: villageCode
+        };
+      }
+    }
+    return { status: "error", message: "Kode Desa tidak valid atau belum terdaftar." };
+  } catch (e) {
+    return { status: "error", message: "Gagal menghubungkan ke Master Sheet: " + e.message };
+  }
+}
+
+/**
+ * INITIALIZATION: Mengatur ID Spreadsheet dari Request
+ * Dipanggil di awal doGet/doPost
+ */
+function setupContext(targetSsId) {
+  if (targetSsId) {
+    SS_ID = targetSsId;
+    ACTIVE_SS = null; // Reset agar getSS() mengambil yang baru
+  }
+}
+
+function getGlobalTemplates() {
+  try {
+    const masterSS = SpreadsheetApp.openById(MASTER_SS_ID);
+    let sheet = masterSS.getSheetByName("Global_Templates");
+    if (!sheet) {
+      sheet = masterSS.insertSheet("Global_Templates");
+      sheet.appendRow(["type", "count", "templateId"]);
+      return [];
+    }
+    const data = sheet.getDataRange().getValues();
+    data.shift();
+    return data.map(row => ({
+      type: row[0],
+      count: row[1],
+      templateId: row[2]
+    }));
+  } catch (e) {
+    console.error("Gagal mengambil global templates: " + e.message);
+    return [];
+  }
+}
 
 /**
  * INITIALIZATION: Run this function once to setup the structure
  * and to AUTHORIZE the script to access Drive and Docs.
  */
 function initApp() {
-  // PAKSA PROMPT OTORISASI - Harap jalankan fungsi ini manual di GAS Editor
-  // Segera hapus file setelah dibuat agar tidak mengotori Drive
+  console.log("Memulai inisialisasi aplikasi...");
+  const SS = getSS();
+  
+  // PAKSA PROMPT OTORISASI (Authorization Trigger)
+  // Anda HARUS menjalankan fungsi 'initApp' secara MANUAL di Editor Google Apps Script
+  // Ini diperlukan agar skrip mendapatkan izin akses ke Google Drive, Docs, dan Spreadsheet.
   try {
-    const dummyFile = DriveApp.createFile('AUTH_DUMMY', 'delete me');
-    const copy = dummyFile.makeCopy('AUTH_DUMMY_COPY');
+    console.log("Mengecek izin Google Drive...");
+    const dummyFile = DriveApp.createFile('PERJADINGO_AUTH_TEST', 'File ini otomatis dibuat untuk verifikasi izin.');
+    const copy = dummyFile.makeCopy('PERJADINGO_AUTH_TEST_COPY');
     dummyFile.setTrashed(true);
     copy.setTrashed(true);
     
-    const doc = DocumentApp.create('AUTH_DUMMY_DOC');
+    console.log("Mengecek izin Google Docs...");
+    const doc = DocumentApp.create('PERJADINGO_AUTH_TEST_DOC');
     DriveApp.getFileById(doc.getId()).setTrashed(true);
+    console.log("Izin berhasil diverifikasi.");
   } catch (e) {
-    console.log("Auth check skipped: " + e.message);
+    console.warn("Peringatan Otorisasi: " + e.message + ". Jika Anda melihat 'Access denied', silakan jalankan fungsi ini secara manual di Editor GAS.");
   }
   
   createSheetIfNotExists("Pegawai", ["id", "name", "nik", "niap", "position", "pangkat", "golongan", "address"]);
@@ -71,7 +163,7 @@ function initApp() {
   createSheetIfNotExists("Konfigurasi", ["Parameter", "Nilai"]);
   
   // Set default templates if empty
-  const templateSheet = SS.getSheetByName("Config_Templates");
+  const templateSheet = getSS().getSheetByName("Config_Templates");
   if (templateSheet.getLastRow() === 1) {
     const types = ["SPD", "Laporan", "SPJ"];
     const rows = [];
@@ -84,7 +176,7 @@ function initApp() {
   }
   
   // Set default config if empty
-  const configSheet = SS.getSheetByName("Konfigurasi");
+  const configSheet = getSS().getSheetByName("Konfigurasi");
   if (configSheet.getLastRow() === 1) {
     const defaultData = [
       ["nama_desa", "Desa Poncol"],
@@ -116,7 +208,7 @@ function initApp() {
  * CONFIGURATION & TEMPLATES
  */
 function getConfig() {
-  const configSheet = SS.getSheetByName("Konfigurasi");
+  const configSheet = getSS().getSheetByName("Konfigurasi");
   if (!configSheet) return {};
   const configData = configSheet.getDataRange().getValues();
   configData.shift();
@@ -132,7 +224,7 @@ function getConfig() {
   });
 
   // Fetch templates
-  const sheet = SS.getSheetByName("Config_Templates");
+  const sheet = getSS().getSheetByName("Config_Templates");
   if (sheet) {
     const data = sheet.getDataRange().getValues();
     data.shift();
@@ -151,7 +243,7 @@ function updateConfig(data) {
   const { templates, ...properties } = data;
   
   // Update sheet Konfigurasi
-  const configSheet = SS.getSheetByName("Konfigurasi");
+  const configSheet = getSS().getSheetByName("Konfigurasi");
   const rows = Object.keys(properties).map(key => [key, properties[key]]);
   configSheet.getRange(2, 1, configSheet.getLastRow() > 1 ? configSheet.getLastRow() - 1 : 1, 2).clearContent();
   configSheet.getRange(2, 1, rows.length, 2).setValues(rows);
@@ -160,10 +252,16 @@ function updateConfig(data) {
   PropertiesService.getScriptProperties().setProperties(properties);
   
   // Update Templates sheet
-  if (templates) {
-    const sheet = SS.getSheetByName("Config_Templates");
-    const tRows = templates.map(t => [t.type, t.count, t.templateId]);
-    sheet.getRange(2, 1, tRows.length, 3).setValues(tRows);
+  if (templates && Array.isArray(templates)) {
+    const sheet = createSheetIfNotExists("Config_Templates", ["type", "count", "templateId"]);
+    // Clear existing data after header
+    if (sheet.getLastRow() > 1) {
+      sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).clearContent();
+    }
+    const tRows = templates.map(t => [t.type, Number(t.count), String(t.templateId || "").trim()]);
+    if (tRows.length > 0) {
+      sheet.getRange(2, 1, tRows.length, 3).setValues(tRows);
+    }
   }
   
   return { status: "success" };
@@ -174,7 +272,7 @@ function updateConfig(data) {
  */
 function getSPDList() {
   try {
-    const sheet = SS.getSheetByName("SPPD");
+    const sheet = getSS().getSheetByName("SPPD");
     if (!sheet) return [];
     const data = sheet.getDataRange().getValues();
     if (data.length <= 1) return [];
@@ -212,7 +310,7 @@ function getSPDList() {
 }
 
 function getNextSPPDNumber() {
-  const sheet = SS.getSheetByName("SPPD");
+  const sheet = getSS().getSheetByName("SPPD");
   const data = sheet.getDataRange().getValues();
   data.shift(); // Remove headers
   
@@ -234,7 +332,7 @@ function getNextSPPDNumber() {
 
 function saveSPD(input) {
   try {
-    const sheet = SS.getSheetByName("SPPD");
+    const sheet = getSS().getSheetByName("SPPD");
     if (!sheet) throw new Error("Sheet SPPD tidak ditemukan. Silakan run 'initApp' terlebih dahulu.");
     
     const lastCol = sheet.getLastColumn();
@@ -334,11 +432,19 @@ function generateDocument(sppdId, docType, extraData) {
     if (!isNaN(pc)) pCount = String(pc);
   }
 
-  const templates = config.templates || [];
-  const template = templates.find(t => t.type === docType && String(t.count) === pCount);
+  // Logika Pemilihan Template: Prioritas Master -> Lokal Desa
+  const globalTemplates = getGlobalTemplates();
+  const localTemplates = config.templates || [];
+  
+  let template = globalTemplates.find(t => t.type === docType && String(t.count) === pCount);
+  
+  // Jika di Master tidak ada, baru cari di Spreadsheet Desa masing-masing
+  if (!template || !template.templateId || String(template.templateId).trim() === "") {
+    template = localTemplates.find(t => t.type === docType && String(t.count) === pCount);
+  }
   
   if (!template || !template.templateId || String(template.templateId).trim() === "") {
-    throw new Error(`Template ${docType} untuk ${pCount} orang belum diatur.`);
+    throw new Error(`Template ${docType} untuk ${pCount} orang belum diatur di Master maupun di Desa.`);
   }
   
   const templateId = template.templateId;
@@ -623,7 +729,7 @@ function generateDocument(sppdId, docType, extraData) {
   const fileUrl = pdfFile.getUrl();
 
   // CATAT KE SHEET ARSIP
-  const arsipSheet = SS.getSheetByName("Arsip_Dokumen");
+  const arsipSheet = getSS().getSheetByName("Arsip_Dokumen");
   arsipSheet.appendRow([
     Utilities.getUuid(),
     sppd.number,
@@ -637,7 +743,7 @@ function generateDocument(sppdId, docType, extraData) {
 }
 
 function updateConfigValue(key, value) {
-  const sheet = SS.getSheetByName("Konfigurasi");
+  const sheet = getSS().getSheetByName("Konfigurasi");
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] == key) {
@@ -649,7 +755,7 @@ function updateConfigValue(key, value) {
 }
 
 function fixDataAlignment() {
-  const sheet = SS.getSheetByName("SPPD");
+  const sheet = getSS().getSheetByName("SPPD");
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return;
   const headers = data[0];
@@ -694,19 +800,33 @@ function fixDataAlignment() {
   }
 }
 
-function uploadFile(base64Data, fileName) {
+function uploadFile(base64Data, fileName, targetFolderId) {
   try {
     const contentType = base64Data.substring(base64Data.indexOf(":") + 1, base64Data.indexOf(";"));
     const bytes = Utilities.base64Decode(base64Data.split(",")[1]);
     const blob = Utilities.newBlob(bytes, contentType, fileName);
     
-    // Simpan ke folder yang sama dengan PDF atau folder "Dokumentasi_SPPD"
+    // Simpan ke folder yang sesuai (Desa spesifik atau default)
     let folder;
-    const folders = DriveApp.getFoldersByName("Dokumentasi_SPPD");
-    if (folders.hasNext()) {
-      folder = folders.next();
-    } else {
-      folder = DriveApp.createFolder("Dokumentasi_SPPD");
+    if (targetFolderId && targetFolderId.trim() !== "") {
+      try {
+        folder = DriveApp.getFolderById(targetFolderId.trim());
+      } catch (e) {
+        console.warn("Folder ID desa (" + targetFolderId + ") tidak dapat diakses atau salah ID: " + e.message);
+      }
+    }
+    
+    if (!folder) {
+      try {
+        const folders = DriveApp.getFoldersByName("Dokumentasi_SPPD");
+        if (folders.hasNext()) {
+          folder = folders.next();
+        } else {
+          folder = DriveApp.createFolder("Dokumentasi_SPPD");
+        }
+      } catch (e) {
+        throw new Error("Akses ditolak ke DriveApp. Pastikan Anda telah menjalankan fungsi 'initApp' di Editor GAS dan memberikan izin akses Drive.");
+      }
     }
     
     const file = folder.createFile(blob);
@@ -749,8 +869,8 @@ function formatRupiah(amount) {
  * DASHBOARD
  */
 function getDashboardStats() {
-  const pegawai = SS.getSheetByName("Pegawai").getLastRow() - 1;
-  const sppd = SS.getSheetByName("SPPD").getLastRow() - 1;
+  const pegawai = getSS().getSheetByName("Pegawai").getLastRow() - 1;
+  const sppd = getSS().getSheetByName("SPPD").getLastRow() - 1;
   
   return {
     pegawai: pegawai > 0 ? pegawai : 0,
@@ -766,7 +886,7 @@ function getDashboardStats() {
  */
 function getPegawai() {
   try {
-    const sheet = SS.getSheetByName("Pegawai");
+    const sheet = getSS().getSheetByName("Pegawai");
     if (!sheet) return [];
     const data = sheet.getDataRange().getValues();
     if (data.length <= 1) return [];
@@ -785,7 +905,7 @@ function getPegawai() {
 }
 
 function tambahPegawai(data) {
-  const sheet = SS.getSheetByName("Pegawai");
+  const sheet = getSS().getSheetByName("Pegawai");
   const id = Utilities.getUuid();
   sheet.appendRow([
     id, 
@@ -801,7 +921,7 @@ function tambahPegawai(data) {
 }
 
 function hapusPegawai(id) {
-  const sheet = SS.getSheetByName("Pegawai");
+  const sheet = getSS().getSheetByName("Pegawai");
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] == id) {
@@ -812,7 +932,7 @@ function hapusPegawai(id) {
 }
 
 function editPegawai(id, data) {
-  const sheet = SS.getSheetByName("Pegawai");
+  const sheet = getSS().getSheetByName("Pegawai");
   const values = sheet.getDataRange().getValues();
   for (let i = 1; i < values.length; i++) {
     if (values[i][0] == id) {
@@ -836,9 +956,9 @@ function editPegawai(id, data) {
  * UTILS
  */
 function createSheetIfNotExists(name, headers) {
-  let sheet = SS.getSheetByName(name);
+  let sheet = getSS().getSheetByName(name);
   if (!sheet) {
-    sheet = SS.insertSheet(name);
+    sheet = getSS().insertSheet(name);
     sheet.appendRow(headers);
     sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#f3f3f3");
   }
@@ -846,7 +966,7 @@ function createSheetIfNotExists(name, headers) {
 
 function getArsip() {
   try {
-    const sheet = SS.getSheetByName("Arsip_Dokumen");
+    const sheet = getSS().getSheetByName("Arsip_Dokumen");
     if (!sheet) return [];
     const data = sheet.getDataRange().getValues();
     if (data.length <= 1) return [];
@@ -869,6 +989,10 @@ function getArsip() {
  */
 function doGet(e) {
   // Masukkan log ke sheet 'Log' untuk debugging jika ada request masuk
+  if (e && e.parameter && e.parameter.ssId) {
+    setupContext(e.parameter.ssId);
+  }
+  
   try {
     const logSheet = createSheetIfNotExists("Log", ["Waktu", "Aksi", "Data"]);
     logSheet.appendRow([new Date(), e.parameter.action || "No Action", JSON.stringify(e.parameter)]);
@@ -915,6 +1039,10 @@ function doPost(e) {
     postData = JSON.parse(e.postData.contents);
   } catch (err) {
     postData = e.parameter;
+  }
+  
+  if (postData.ssId) {
+    setupContext(postData.ssId);
   }
   
   const action = postData.action;

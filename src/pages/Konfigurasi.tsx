@@ -281,7 +281,6 @@ const Konfigurasi: React.FC = () => {
               />
             </div>
           </div>
-
         </div>
 
         <div className="md:col-span-12 flex justify-end pb-12">

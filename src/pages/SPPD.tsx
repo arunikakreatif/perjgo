@@ -364,7 +364,7 @@ const SPPDPage: React.FC = () => {
                         <div className="flex justify-end gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
                           <button 
                             onClick={() => handleLaporanEdit(item)}
-                            className="p-2 bg-surface hover:bg-amber-100 hover:text-amber-700 border border-outline-variant rounded-lg transition-all" 
+                            className="p-2 bg-surface hover:bg-primary/10 hover:text-primary border border-outline-variant rounded-lg transition-all" 
                             title="Buat Laporan"
                           >
                             <FileText size={16} />
@@ -421,7 +421,7 @@ const SPPDPage: React.FC = () => {
       ) : showLaporanForm ? (
         <div className="max-w-3xl mx-auto animate-in fade-in zoom-in duration-300">
            <div className="bg-white border border-outline-variant rounded-3xl shadow-xl overflow-hidden mb-12">
-              <div className="bg-amber-500 p-8 text-white">
+              <div className="bg-primary p-8 text-white">
                 <div className="flex justify-between items-start">
                   <div>
                     <h2 className="text-2xl font-black tracking-tight mb-2 uppercase">Laporan Perjalanan Dinas</h2>
@@ -466,7 +466,7 @@ const SPPDPage: React.FC = () => {
                             type="button"
                             disabled={generating || !formData.laporan1}
                             onClick={handleGenerateAI}
-                            className="flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-all shadow-sm active:scale-95 disabled:opacity-50 border border-amber-200"
+                            className="flex items-center gap-2 px-3 py-1 bg-primary/5 text-primary rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-primary/10 transition-all shadow-sm active:scale-95 disabled:opacity-50 border border-primary/20"
                           >
                             {generating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
                             {generating ? 'Sempurnakan...' : '🤖 AI Sempurnakan Laporan'}
@@ -477,7 +477,7 @@ const SPPDPage: React.FC = () => {
                           value={formData.laporan1 || ''}
                           onChange={e => setFormData({...formData, laporan1: e.target.value})}
                           rows={3} 
-                          className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-amber-500 transition-all resize-none shadow-sm" 
+                          className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-primary transition-all resize-none shadow-sm" 
                           placeholder="Masukkan rincian singkat kegiatan di sini, lalu klik AI Sempurnakan..." 
                         />
                       </div>
@@ -487,7 +487,7 @@ const SPPDPage: React.FC = () => {
                           value={formData.laporan2 || ''}
                           onChange={e => setFormData({...formData, laporan2: e.target.value})}
                           rows={3} 
-                          className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-amber-500 transition-all resize-none shadow-sm" 
+                          className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-primary transition-all resize-none shadow-sm" 
                           placeholder="Hasil lanjutan kegiatan..." 
                         />
                       </div>
@@ -497,7 +497,7 @@ const SPPDPage: React.FC = () => {
                           value={formData.laporan3 || ''}
                           onChange={e => setFormData({...formData, laporan3: e.target.value})}
                           rows={3} 
-                          className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-amber-500 transition-all resize-none shadow-sm" 
+                          className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-primary transition-all resize-none shadow-sm" 
                           placeholder="Kesimpulan atau penutup kegiatan..." 
                         />
                       </div>
@@ -507,13 +507,13 @@ const SPPDPage: React.FC = () => {
                           <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-loose">Foto Dokumentasi</label>
                           <div className={cn(
                             "relative aspect-video border-2 border-dashed border-outline-variant rounded-2xl overflow-hidden transition-all group flex flex-col items-center justify-center gap-3",
-                            formData.fotoUrl ? "border-solid border-amber-500" : "bg-surface hover:bg-white hover:border-amber-500"
+                            formData.fotoUrl ? "border-solid border-primary" : "bg-surface hover:bg-white hover:border-primary"
                           )}>
                             {formData.fotoUrl ? (
                               <>
                                 <img src={formData.fotoUrl} alt="Preview" className="w-full h-full object-cover" />
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                  <label className="p-3 bg-white text-on-surface rounded-xl cursor-pointer hover:bg-amber-50 transition-colors shadow-lg">
+                                  <label className="p-3 bg-white text-on-surface rounded-xl cursor-pointer hover:bg-primary/5 transition-colors shadow-lg">
                                     <Edit3 size={20} />
                                     <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} disabled={uploading} />
                                   </label>
@@ -528,12 +528,12 @@ const SPPDPage: React.FC = () => {
                               </>
                             ) : uploading ? (
                               <div className="flex flex-col items-center gap-3">
-                                <Loader2 className="animate-spin text-amber-500" size={32} />
-                                <p className="text-xs font-bold text-amber-600">MENGUNGGAH...</p>
+                                <Loader2 className="animate-spin text-primary" size={32} />
+                                <p className="text-xs font-bold text-primary">MENGUNGGAH...</p>
                               </div>
                             ) : (
                               <div className="flex flex-col items-center gap-3">
-                                <div className="p-3 bg-amber-50 text-amber-600 rounded-full group-hover:scale-110 transition-transform">
+                                <div className="p-3 bg-primary/5 text-primary rounded-full group-hover:scale-110 transition-transform">
                                   <Plus size={24} />
                                 </div>
                                 <div className="text-center">
@@ -548,7 +548,7 @@ const SPPDPage: React.FC = () => {
                           {/* ELEGANT PROGRESS LINE */}
                           {uploading && (
                             <div className="w-full h-1 bg-surface border border-outline-variant rounded-full mt-2 overflow-hidden">
-                              <div className="h-full bg-amber-500 animate-[progress_2s_infinite_linear]" style={{ width: '40%' }}></div>
+                              <div className="h-full bg-primary animate-[progress_2s_infinite_linear]" style={{ width: '40%' }}></div>
                             </div>
                           )}
                         </div>
@@ -559,7 +559,7 @@ const SPPDPage: React.FC = () => {
                                 value={formData.caption || ''}
                                 onChange={e => setFormData({...formData, caption: e.target.value})}
                                 rows={5} 
-                                className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-amber-500 transition-all resize-none shadow-sm" 
+                                className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-primary transition-all resize-none shadow-sm" 
                                 placeholder="Contoh: Foto bersama bupati..." 
                               />
                            </div>
@@ -568,7 +568,7 @@ const SPPDPage: React.FC = () => {
                               <button 
                                 type="submit" 
                                 disabled={saving || uploading}
-                                className="flex-1 px-6 py-4 bg-amber-500 text-white rounded-2xl font-black tracking-widest uppercase text-[10px] shadow-lg hover:bg-amber-600 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2.5"
+                                className="flex-1 px-6 py-4 bg-primary text-white rounded-2xl font-black tracking-widest uppercase text-[10px] shadow-lg hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2.5"
                               >
                                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                                 {saving ? 'MENYIMPAN...' : 'SIMPAN LAPORAN'}

@@ -27,19 +27,24 @@ import {
 import { cn } from '../lib/utils';
 import { gasService } from '../services/gasService';
 
-const StatCard = ({ title, value, subtitle, icon: Icon, progress }: any) => (
-  <div className="bg-white border border-outline-variant p-6 rounded-xl flex flex-col justify-between hover:shadow-md transition-shadow group">
+import { Page } from '../types';
+
+const StatCard = ({ title, value, subtitle, icon: Icon, progress, accent }: any) => (
+  <div className={cn(
+    "bg-white border p-6 rounded-xl flex flex-col justify-between hover:shadow-md transition-shadow group relative overflow-hidden",
+    accent ? "border-t-4 border-t-primary border-x-outline-variant border-b-outline-variant" : "border-outline-variant"
+  )}>
     <div className="flex justify-between items-start">
       <div className="p-2.5 bg-surface-container-high rounded-lg text-primary group-hover:scale-110 transition-transform">
         <Icon size={24} />
       </div>
-      <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{title}</span>
+      <span className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">{title}</span>
     </div>
     <div className="mt-6">
       <h3 className="text-4xl font-bold text-on-surface tnum">{value}</h3>
-      <p className="text-xs text-secondary font-medium mt-1">{subtitle}</p>
+      <p className="text-xs text-on-surface-variant/60 font-bold uppercase tracking-wider mt-1">{subtitle}</p>
     </div>
-    <div className="mt-4 h-1.5 w-full bg-surface-container-low rounded-full overflow-hidden">
+    <div className="mt-4 h-1 w-full bg-surface-container-low rounded-full overflow-hidden">
       <motion.div 
         initial={{ width: 0 }}
         animate={{ width: `${progress}%` }}
@@ -50,7 +55,11 @@ const StatCard = ({ title, value, subtitle, icon: Icon, progress }: any) => (
   </div>
 );
 
-const Dashboard: React.FC = () => {
+interface DashboardProps {
+  onPageChange: (page: Page) => void;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ onPageChange }) => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [config, setConfig] = useState<any>(null);
@@ -87,6 +96,12 @@ const Dashboard: React.FC = () => {
     { name: 'Jun', value: stats?.chart?.[5] || 0 },
   ];
 
+  const quickActions = [
+    { label: 'Buat SPPD Baru', icon: PlusCircle, page: 'sppd' },
+    { label: 'Tambah Pegawai', icon: UserPlus, page: 'pegawai' },
+    { label: 'Update Konfigurasi', icon: Settings2, page: 'konfigurasi' },
+  ] as const;
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Welcome Header */}
@@ -107,10 +122,10 @@ const Dashboard: React.FC = () => {
 
       {/* Stats Grid */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard title="Pegawai Aktif" value={stats?.pegawai || 0} subtitle="Total Pegawai" icon={BadgeCheck} progress={75} />
-        <StatCard title="Surat Tugas" value={stats?.sppd || 0} subtitle="Total SPPD" icon={FileText} progress={50} />
-        <StatCard title="Dokumen Laporan" value={stats?.laporan || 0} subtitle="Total Laporan" icon={ClipboardList} progress={65} />
-        <StatCard title="Pertanggungjawaban" value={stats?.spj || 0} subtitle="Total SPJ" icon={CreditCard} progress={85} />
+        <StatCard title="Total Pegawai" value={stats?.pegawai || 0} subtitle="Pegawai Terdaftar" icon={BadgeCheck} progress={75} accent />
+        <StatCard title="Aktif Dinas" value={stats?.sppd || 0} subtitle="Sedang Berjalan" icon={FileText} progress={50} />
+        <StatCard title="Laporan Masuk" value={stats?.laporan || 0} subtitle="Dokumen Selesai" icon={ClipboardList} progress={65} />
+        <StatCard title="SPJ Belum" value={stats?.spj || 0} subtitle="Perlu Tindakan" icon={CreditCard} progress={85} />
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -122,13 +137,10 @@ const Dashboard: React.FC = () => {
               Quick Actions
             </h4>
             <div className="space-y-3">
-              {[
-                { label: 'Buat SPPD Baru', icon: PlusCircle },
-                { label: 'Tambah Pegawai', icon: UserPlus },
-                { label: 'Update Konfigurasi', icon: Settings2 },
-              ].map((action) => (
+              {quickActions.map((action) => (
                 <button 
                   key={action.label}
+                  onClick={() => onPageChange(action.page as Page)}
                   className="w-full flex items-center justify-between p-4 border border-outline-variant rounded-lg hover:bg-surface-container-low transition-all group"
                 >
                   <div className="flex items-center gap-4">
@@ -147,12 +159,24 @@ const Dashboard: React.FC = () => {
           <div className="bg-white border border-outline-variant rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
               <h4 className="font-bold text-on-surface">Aktivitas Terakhir</h4>
-              <button className="text-xs font-bold text-primary hover:underline">Lihat Semua</button>
+              <button 
+                onClick={() => onPageChange('sppd')}
+                className="text-xs font-bold text-primary hover:underline"
+              >
+                Lihat Semua
+              </button>
             </div>
             <div className="p-2">
               {stats?.recentActivities?.length > 0 ? (
                 stats.recentActivities.map((activity: any) => (
-                  <div key={activity.id} className="p-4 flex items-center gap-4 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer group">
+                  <div 
+                    key={activity.id} 
+                    onClick={() => {
+                      if (activity.type === 'SPPD' || activity.type === 'Laporan') onPageChange('sppd');
+                      if (activity.type === 'SPJ') onPageChange('spj');
+                    }}
+                    className="p-4 flex items-center gap-4 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer group"
+                  >
                     <div className="w-10 h-10 bg-surface-container-high rounded-lg flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                        {activity.type === 'SPPD' ? <BadgeCheck size={20} /> : activity.type === 'SPJ' ? <ClipboardList size={20} /> : <FileText size={20} />}
                     </div>
@@ -163,8 +187,8 @@ const Dashboard: React.FC = () => {
                     <span className={cn(
                       "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
                       activity.type === 'SPPD' ? "bg-green-100 text-green-800" : 
-                      activity.type === 'SPJ' ? "bg-amber-100 text-amber-800" : 
-                      "bg-blue-100 text-blue-800"
+                      activity.type === 'SPJ' ? "bg-primary/10 text-primary" : 
+                      "bg-primary/10 text-primary"
                     )}>
                       {activity.status}
                     </span>
@@ -194,13 +218,13 @@ const Dashboard: React.FC = () => {
                     dataKey="name" 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{ fill: '#5a413d', fontSize: 12, fontWeight: 600 }}
+                    tick={{ fill: '#5f6368', fontSize: 12, fontWeight: 600 }}
                     dy={10}
                   />
                   <YAxis hide />
                   <Tooltip 
-                    cursor={{ fill: '#eff4ff' }}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    cursor={{ fill: '#f8f9ff' }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
                   />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
                     {chartData.map((entry, index) => (

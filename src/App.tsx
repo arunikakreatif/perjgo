@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Pegawai from './pages/Pegawai';
@@ -7,15 +7,42 @@ import Laporan from './pages/Laporan';
 import SPJ from './pages/SPJ';
 import Konfigurasi from './pages/Konfigurasi';
 import About from './pages/About';
+import Login from './pages/Login';
 import { Page } from './types';
+import { gasService } from './services/gasService';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    // Cek apakah user sudah login (ada di storage)
+    setIsAuthenticated(gasService.isLoggedIn());
+    setIsCheckingAuth(false);
+  }, []);
+
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+    setCurrentPage('dashboard');
+  };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-surface flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLoginSuccess} />;
+  }
 
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard onPageChange={setCurrentPage} />;
       case 'pegawai':
         return <Pegawai />;
       case 'sppd':

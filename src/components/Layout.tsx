@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Page } from '../types';
-import { gasService } from '../services/gasService';
+import { gasService, logout } from '../services/gasService';
 
 interface SidebarProps {
   currentPage: Page;
@@ -26,13 +26,18 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
   const [villageName, setVillageName] = useState<string>('Desa Mandiri');
 
   useEffect(() => {
-    gasService.getConfig()
-      .then(data => {
-        if (data && data.nama_desa) {
-          setVillageName(data.nama_desa);
-        }
-      })
-      .catch(err => console.error("Failed to fetch village name for sidebar", err));
+    const tenant = gasService.getTenant();
+    if (tenant && tenant.villageName) {
+      setVillageName(tenant.villageName);
+    } else {
+      gasService.getConfig()
+        .then(data => {
+          if (data && data.nama_desa) {
+            setVillageName(data.nama_desa);
+          }
+        })
+        .catch(err => console.error("Failed to fetch village name for sidebar", err));
+    }
   }, []);
 
   const menuItems = [
@@ -46,7 +51,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
   ] as const;
 
   return (
-    <aside id="sidebar" className="fixed left-0 top-0 h-full w-64 bg-tertiary flex flex-col py-8 z-50">
+    <aside id="sidebar" className="fixed left-0 top-0 h-full w-64 bg-secondary flex flex-col py-8 z-50 border-r border-white/5">
       <div className="px-6 mb-8 flex items-center gap-3">
         <img 
           src="https://res.cloudinary.com/maswardi/image/upload/v1778757806/go_gsqgd7.png" 
@@ -55,39 +60,43 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
           referrerPolicy="no-referrer"
         />
         <div>
-          <h1 className="text-xl font-bold text-on-tertiary">{villageName}</h1>
-          <p className="text-[10px] text-on-tertiary/70 uppercase tracking-widest font-black">GOdigital</p>
+          <h1 className="text-xl font-bold text-white">{villageName}</h1>
+          <p className="text-[10px] text-white/50 uppercase tracking-widest font-black">GOdigital</p>
         </div>
       </div>
 
-      <nav className="flex-1 px-4 space-y-1">
+      <nav className="flex-1 px-3 space-y-1">
         {menuItems.map((item) => (
           <button
             key={item.id}
             id={`nav-${item.id}`}
             onClick={() => onPageChange(item.id as Page)}
             className={cn(
-              "w-full flex items-center gap-4 px-4 py-2.5 rounded-lg transition-all text-left",
+              "w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-left",
               currentPage === item.id 
-                ? "bg-primary text-on-primary" 
-                : "text-on-tertiary/70 hover:text-on-tertiary hover:bg-white/10"
+                ? "bg-primary text-white shadow-lg shadow-black/20" 
+                : "text-white/60 hover:text-white hover:bg-white/5"
             )}
           >
             <item.icon size={20} />
-            <span className="text-sm font-semibold">{item.label}</span>
+            <span className="text-sm font-semibold tracking-wide">{item.label}</span>
           </button>
         ))}
 
-        <div className="mt-8 pt-8 border-t border-white/10">
+        <div className="mt-8 pt-8 border-t border-white/5">
         </div>
       </nav>
 
       <div className="px-4 mt-auto">
-        <button id="sidebar-help" className="w-full flex items-center gap-4 px-4 py-2.5 text-on-tertiary/70 hover:text-on-tertiary transition-all text-left">
+        <button id="sidebar-help" className="w-full flex items-center gap-4 px-4 py-2.5 text-white/50 hover:text-white transition-all text-left">
           <HelpCircle size={20} />
           <span className="text-sm font-semibold">Bantuan</span>
         </button>
-        <button id="sidebar-logout" className="w-full flex items-center gap-4 px-4 py-2.5 text-on-tertiary/70 hover:text-on-tertiary transition-all text-left">
+        <button 
+          id="sidebar-logout" 
+          onClick={logout}
+          className="w-full flex items-center gap-4 px-4 py-2.5 text-white/50 hover:text-white transition-all text-left"
+        >
           <LogOut size={20} />
           <span className="text-sm font-semibold">Keluar</span>
         </button>

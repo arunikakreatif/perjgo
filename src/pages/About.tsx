@@ -102,10 +102,10 @@ const About: React.FC = () => {
       </div>
 
       {/* Advantages & Technical Excellence */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="space-y-6">
-          <h4 className="text-2xl font-black text-on-surface uppercase tracking-tight">Kelebihan Platform</h4>
-          <ul className="space-y-4">
+      <div className="max-w-3xl mx-auto">
+        <div className="space-y-8 bg-white p-10 rounded-3xl border border-outline-variant">
+          <h4 className="text-2xl font-black text-on-surface uppercase tracking-tight text-center">Kelebihan Platform</h4>
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
             {[
               "Arsip terdigitalisasi dan mudah dicari di kemudian hari.",
               "Koneksi langsung dengan Google Drive untuk penyimpanan dokumen.",
@@ -114,20 +114,13 @@ const About: React.FC = () => {
               "Manajemen data pegawai yang komprehensif (NIK, NIAP, Jabatan, Pangkat)."
             ].map((item, i) => (
               <li key={i} className="flex gap-4 items-start">
-                <div className="mt-1 bg-primary text-on-primary p-0.5 rounded-full">
+                <div className="mt-1 bg-primary text-on-primary p-0.5 rounded-full shrink-0">
                   <CheckCircle2 size={14} />
                 </div>
-                <span className="text-on-surface-variant font-medium">{item}</span>
+                <span className="text-on-surface-variant font-medium text-sm leading-relaxed">{item}</span>
               </li>
             ))}
           </ul>
-        </div>
-        <div className="bg-primary/5 p-8 rounded-3xl flex flex-col justify-center border border-primary/10 space-y-4">
-          <h5 className="font-bold text-primary tnum uppercase tracking-widest text-xs">Update V1.2.5 - Dynamic Placeholders</h5>
-          <p className="text-on-surface-variant text-sm italic font-medium">
-            "Sistem kini mendukung placeholder identitas wilayah otomatis: {"{{KAB}}"}, {"{{KEC}}"}, {"{{DESA}}"}, serta optimasi penempatan foto dokumentasi {"{{FOTO_Upload}}"} (Behind Text) untuk laporan perjalanan."
-          </p>
-          <div className="w-12 h-1 bg-primary rounded-full" />
         </div>
       </div>
     </div>
