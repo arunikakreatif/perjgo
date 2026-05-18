@@ -216,7 +216,7 @@ const SPPDPage: React.FC = () => {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, index?: number) => {
     const file = e.target.files?.[0];
     if (file) {
       setUploading(true);
@@ -252,17 +252,25 @@ const SPPDPage: React.FC = () => {
           const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.7);
           
           // EXPERT FIX: Set local preview immediately
-          setFormData(prev => ({ ...prev, fotoUrl: optimizedBase64 }));
+          const key = index !== undefined ? `fotoUrl${index + 1}` : 'fotoUrl';
+          setFormData(prev => ({ ...prev, [key]: optimizedBase64 }));
 
           gasService.uploadFile(optimizedBase64, file.name.replace(/\.[^/.]+$/, "") + ".jpg")
             .then(res => {
-              // Keep the base64 local preview for speed and reliability, update the Drive ID
-              setFormData(prev => ({ ...prev, fotoId: res.id }));
+              // Keep the base64 local preview for speed and reliability, update the Drive ID if it's the main one
+              if (index === undefined) {
+                setFormData(prev => ({ ...prev, fotoId: res.id }));
+              }
               setUploading(false);
             })
             .catch(err => {
               console.error("Upload failed", err);
-              alert("Gagal upload foto: " + err);
+              const errMsg = String(err);
+              if (errMsg.includes("DriveApp") || errMsg.includes("Akses ditolak") || errMsg.includes("Authorization")) {
+                alert("🛑 ERROR IZIN (Google Drive)\n\nAplikasi tidak bisa menyimpan file karena belum mendapatkan izin.\n\n👉 LANGKAH PERBAIKAN:\n1. Buka Editor Apps Script.\n2. Pilih fungsi 'initApp' lalu klik 'Jalankan'.\n3. Klik 'Tinjau Izin' -> 'Advanced' -> 'Go to ... (unsafe)' -> 'Izinkan'.\n4. Deploy ulang sebagai 'NEW VERSION'.");
+              } else {
+                alert("Gagal upload foto: " + errMsg);
+              }
               setUploading(false);
             });
         };
@@ -419,7 +427,7 @@ const SPPDPage: React.FC = () => {
           </div>
         </div>
       ) : showLaporanForm ? (
-        <div className="max-w-3xl mx-auto animate-in fade-in zoom-in duration-300">
+        <div className="max-w-4xl mx-auto animate-in fade-in zoom-in duration-300">
            <div className="bg-white border border-outline-variant rounded-3xl shadow-xl overflow-hidden mb-12">
               <div className="bg-primary p-8 text-white">
                 <div className="flex justify-between items-start">
@@ -438,30 +446,22 @@ const SPPDPage: React.FC = () => {
 
               <div className="p-8">
                 {/* SPPD Context Summary */}
-                <div className="bg-surface p-6 rounded-2xl border border-outline-variant grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                <div className="bg-surface p-6 rounded-2xl border border-outline-variant grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 text-[11px]">
                    <div>
-                     <p className="text-[10px] font-bold text-on-surface-variant uppercase mb-1">Maksud Perjalanan</p>
-                     <p className="text-sm font-bold text-on-surface">{formData.purpose}</p>
+                     <p className="font-bold text-on-surface-variant uppercase mb-1">Maksud Perjalanan</p>
+                     <p className="font-bold text-on-surface">{formData.purpose}</p>
                    </div>
                    <div>
-                     <p className="text-[10px] font-bold text-on-surface-variant uppercase mb-1">Tujuan</p>
-                     <p className="text-sm font-bold text-on-surface">{formData.destination}</p>
-                   </div>
-                   <div>
-                     <p className="text-[10px] font-bold text-on-surface-variant uppercase mb-1">Waktu</p>
-                     <p className="text-sm font-bold text-on-surface tnum">{formData.dateStart} s/d {formData.dateEnd}</p>
-                   </div>
-                   <div>
-                     <p className="text-[10px] font-bold text-on-surface-variant uppercase mb-1">Pelapor</p>
-                     <p className="text-sm font-bold text-on-surface">{formData.employeeNames?.[0] || "-"}</p>
+                     <p className="font-bold text-on-surface-variant uppercase mb-1">Tujuan</p>
+                     <p className="font-bold text-on-surface">{formData.destination}</p>
                    </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-10">
                    <div className="space-y-6">
                       <div className="flex flex-col gap-2">
                         <div className="flex justify-between items-end">
-                          <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-loose">Hasil Yang Dicapai 1</label>
+                          <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-loose">Hasil Yang Dicapai (Narasi Utama)</label>
                           <button
                             type="button"
                             disabled={generating || !formData.laporan1}
@@ -472,116 +472,106 @@ const SPPDPage: React.FC = () => {
                             {generating ? 'Sempurnakan...' : '🤖 AI Sempurnakan Laporan'}
                           </button>
                         </div>
-                        <textarea 
-                          required
-                          value={formData.laporan1 || ''}
-                          onChange={e => setFormData({...formData, laporan1: e.target.value})}
-                          rows={3} 
-                          className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-primary transition-all resize-none shadow-sm" 
-                          placeholder="Masukkan rincian singkat kegiatan di sini, lalu klik AI Sempurnakan..." 
-                        />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-loose">Hasil Yang Dicapai 2</label>
-                        <textarea 
-                          value={formData.laporan2 || ''}
-                          onChange={e => setFormData({...formData, laporan2: e.target.value})}
-                          rows={3} 
-                          className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-primary transition-all resize-none shadow-sm" 
-                          placeholder="Hasil lanjutan kegiatan..." 
-                        />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-loose">Hasil Yang Dicapai 3</label>
-                        <textarea 
-                          value={formData.laporan3 || ''}
-                          onChange={e => setFormData({...formData, laporan3: e.target.value})}
-                          rows={3} 
-                          className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-primary transition-all resize-none shadow-sm" 
-                          placeholder="Kesimpulan atau penutup kegiatan..." 
-                        />
+                        <div className="grid grid-cols-1 gap-4">
+                          <textarea 
+                            required
+                            value={formData.laporan1 || ''}
+                            onChange={e => setFormData({...formData, laporan1: e.target.value})}
+                            rows={3} 
+                            className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-primary transition-all resize-none shadow-sm" 
+                            placeholder="I. Pendahuluan & Koordinasi Awal..." 
+                          />
+                          <textarea 
+                            value={formData.laporan2 || ''}
+                            onChange={e => setFormData({...formData, laporan2: e.target.value})}
+                            rows={3} 
+                            className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-primary transition-all resize-none shadow-sm" 
+                            placeholder="II. Pelaksanaan Kegiatan Utamanya..." 
+                          />
+                          <textarea 
+                            value={formData.laporan3 || ''}
+                            onChange={e => setFormData({...formData, laporan3: e.target.value})}
+                            rows={3} 
+                            className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-primary transition-all resize-none shadow-sm" 
+                            placeholder="III. Kesimpulan & Penutup..." 
+                          />
+                        </div>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="flex flex-col gap-2">
-                          <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-loose">Foto Dokumentasi</label>
-                          <div className={cn(
-                            "relative aspect-video border-2 border-dashed border-outline-variant rounded-2xl overflow-hidden transition-all group flex flex-col items-center justify-center gap-3",
-                            formData.fotoUrl ? "border-solid border-primary" : "bg-surface hover:bg-white hover:border-primary"
-                          )}>
-                            {formData.fotoUrl ? (
-                              <>
-                                <img src={formData.fotoUrl} alt="Preview" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                  <label className="p-3 bg-white text-on-surface rounded-xl cursor-pointer hover:bg-primary/5 transition-colors shadow-lg">
-                                    <Edit3 size={20} />
-                                    <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} disabled={uploading} />
-                                  </label>
-                                  <button 
-                                    type="button"
-                                    onClick={() => setFormData({...formData, fotoUrl: ''})}
-                                    className="p-3 bg-white text-error rounded-xl hover:bg-red-50 transition-colors shadow-lg"
-                                  >
-                                    <Trash2 size={20} />
-                                  </button>
-                                </div>
-                              </>
-                            ) : uploading ? (
-                              <div className="flex flex-col items-center gap-3">
-                                <Loader2 className="animate-spin text-primary" size={32} />
-                                <p className="text-xs font-bold text-primary">MENGUNGGAH...</p>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center gap-3">
-                                <div className="p-3 bg-primary/5 text-primary rounded-full group-hover:scale-110 transition-transform">
-                                  <Plus size={24} />
-                                </div>
-                                <div className="text-center">
-                                  <p className="text-[10px] font-black text-on-surface uppercase tracking-widest mb-1">Pilih Foto</p>
-                                  <p className="text-[9px] text-on-surface-variant uppercase font-medium">JPEG, PNG Max 5MB</p>
-                                </div>
-                                <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileChange} />
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* ELEGANT PROGRESS LINE */}
-                          {uploading && (
-                            <div className="w-full h-1 bg-surface border border-outline-variant rounded-full mt-2 overflow-hidden">
-                              <div className="h-full bg-primary animate-[progress_2s_infinite_linear]" style={{ width: '40%' }}></div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-4">
-                           <div className="flex flex-col gap-2">
-                              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-loose">Keterangan Foto</label>
-                              <textarea 
-                                value={formData.caption || ''}
-                                onChange={e => setFormData({...formData, caption: e.target.value})}
-                                rows={5} 
-                                className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-primary transition-all resize-none shadow-sm" 
-                                placeholder="Contoh: Foto bersama bupati..." 
-                              />
+                      <div className="space-y-6 border-t border-outline-variant pt-8">
+                         <div className="flex items-center gap-3">
+                           <div className="w-8 h-8 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-bold text-sm">
+                             <Download size={14} />
                            </div>
+                           <h3 className="font-black text-xs uppercase tracking-widest">Dokumentasi Foto Per Pelapor</h3>
+                         </div>
+                         <p className="text-[10px] text-on-surface-variant font-medium -mt-4 mb-4 uppercase tracking-wider">Masing-masing pelapor wajib memiliki satu foto dokumentasi yang unik.</p>
+                         
+                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {formData.employeeNames?.slice(0, formData.peopleCount).map((name, idx) => (
+                              <div key={idx} className="flex flex-col gap-3 p-4 border border-outline-variant rounded-2xl bg-surface/30">
+                                <p className="text-[9px] font-black text-on-surface-variant uppercase tracking-widest truncate">{name}</p>
+                                <div className={cn(
+                                  "relative aspect-[4/3] border border-dashed border-outline-variant rounded-xl overflow-hidden transition-all group flex flex-col items-center justify-center bg-white",
+                                  (formData as any)[`fotoUrl${idx + 1}`] ? "border-solid border-secondary" : "hover:border-secondary"
+                                )}>
+                                  {(formData as any)[`fotoUrl${idx + 1}`] ? (
+                                    <>
+                                      <img src={(formData as any)[`fotoUrl${idx + 1}`]} alt="Preview" className="w-full h-full object-cover" />
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                        <label className="p-2 bg-white text-on-surface rounded-lg cursor-pointer hover:bg-secondary/5 transition-colors shadow-lg">
+                                          <Edit3 size={16} />
+                                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, idx)} disabled={uploading} />
+                                        </label>
+                                        <button 
+                                          type="button"
+                                          onClick={() => setFormData({...formData, [`fotoUrl${idx + 1}`]: ''} as any)}
+                                          className="p-2 bg-white text-error rounded-lg hover:bg-red-50 transition-colors shadow-lg"
+                                        >
+                                          <Trash2 size={16} />
+                                        </button>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="flex flex-col items-center gap-2">
+                                      <Plus size={16} className="text-on-surface-variant" />
+                                      <p className="text-[8px] font-black uppercase tracking-widest text-on-surface-variant">Upload Foto</p>
+                                      <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleFileChange(e, idx)} />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                         </div>
+                      </div>
 
-                           <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                              <button 
-                                type="submit" 
-                                disabled={saving || uploading}
-                                className="flex-1 px-6 py-4 bg-primary text-white rounded-2xl font-black tracking-widest uppercase text-[10px] shadow-lg hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2.5"
-                              >
-                                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                                {saving ? 'MENYIMPAN...' : 'SIMPAN LAPORAN'}
-                              </button>
-                              <button 
-                                type="button"
-                                onClick={() => setShowLaporanForm(false)}
-                                className="px-6 py-4 bg-white text-on-surface border border-outline-variant rounded-2xl font-black tracking-widest uppercase text-[10px] hover:bg-surface active:scale-95 transition-all"
-                              >
-                                BATAL
-                              </button>
-                           </div>
-                        </div>
+                      <div className="flex flex-col gap-2 pt-4">
+                          <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-loose">Keterangan Umum (Caption)</label>
+                          <input 
+                            type="text"
+                            value={formData.caption || ''}
+                            onChange={e => setFormData({...formData, caption: e.target.value})}
+                            className="p-4 bg-surface border border-outline-variant rounded-2xl outline-none focus:border-primary transition-all shadow-sm" 
+                            placeholder="Contoh: Seluruh perangkat mengikuti apel pagi..." 
+                          />
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-4 pt-6">
+                          <button 
+                            type="submit" 
+                            disabled={saving || uploading}
+                            className="flex-1 px-8 py-5 bg-primary text-white rounded-2xl font-black tracking-widest uppercase text-[11px] shadow-lg hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                          >
+                            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                            {saving ? 'PROSES MENYIMPAN...' : 'SIMPAN & GENERATE LAPORAN'}
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setShowLaporanForm(false)}
+                            className="px-8 py-5 bg-white text-on-surface border border-outline-variant rounded-2xl font-black tracking-widest uppercase text-[11px] hover:bg-surface active:scale-95 transition-all"
+                          >
+                            KEMBALI
+                          </button>
                       </div>
                    </div>
 
@@ -592,7 +582,7 @@ const SPPDPage: React.FC = () => {
                     )}>
                       <div className="flex items-center gap-3">
                         {status.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-                        <p className="text-sm font-bold uppercase tracking-tight">{status.message}</p>
+                        <p className="text-sm font-bold uppercase tracking-tight text-center flex-1">{status.message}</p>
                       </div>
                     </div>
                   )}

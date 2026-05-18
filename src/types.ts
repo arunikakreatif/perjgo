@@ -26,6 +26,11 @@ export interface SPPD {
   caption?: string;
   fotoUrl?: string;
   fotoId?: string;
+  fotoUrl1?: string;
+  fotoUrl2?: string;
+  fotoUrl3?: string;
+  fotoUrl4?: string;
+  fotoUrl5?: string;
   uangHarian?: number;
   uangBBM?: number;
   tglBayar?: string;

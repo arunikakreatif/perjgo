@@ -5,7 +5,7 @@ import { Employee, SPPD } from '../types';
  * As requested, uses google.script.run for all backend calls.
  */
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxHkYQV_rouL0ZsHBNe2IZw5S2kIe6vzI7_GyupGr4lvELt0z_gfwHbf_IAQh1a_PHHog/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzMHK1xPfmRzFaQsGRQVRbAyK-gGq_o9Oc0UU0Dy0ygkXcTiKSLpsvlDNf9FBc7izpucw/exec';
 
 export interface TenantInfo {
   villageName: string;
@@ -66,8 +66,31 @@ const runGas = <T>(functionName: string, ...args: any[]): Promise<T> => {
         .then(data => {
           if (data && data.error) {
             console.error("GAS Script Error:", data.error);
-            // Jika ada error dari script, kita tetap ingin tahu, bukan fallback ke mock
-            reject(data.error);
+            const errMsg = String(data.error);
+            if (errMsg.includes("DriveApp") || errMsg.includes("Akses ditolak") || errMsg.includes("Permission denied")) {
+              reject(`🛑 ERROR IZIN (Google Drive)
+--------------------------------------
+Aplikasi tidak bisa menyimpan file karena belum mendapatkan izin.
+
+👉 LANGKAH PERBAIKAN:
+1. Buka Editor Apps Script (Tempat Anda copy-paste script).
+2. Di baris atas, pastikan yang terpilih adalah fungsi 'initApp'.
+3. Klik tombol 'Jalankan' (Run) di sebelah kiri dropdown.
+4. Klik 'Tinjau Izin' -> Pilih Akun Anda.
+5. PENTING: Klik 'Advanced' / 'Lanjutan' (di kiri bawah jendela pop-up).
+6. Klik 'Go to perjadinGO (unsafe)' / 'Buka perjadinGO (tidak aman)'.
+7. Klik 'Izinkan' / 'Allow'.
+
+⚠️ LANGKAH TERAKHIR (WAJIB):
+1. Klik tombol 'Deploy' -> 'Manage Deployments'.
+2. Klik ikon Pensil (Edit) pada deployment aktif.
+3. Di kolom Version, ganti menjadi 'NEW VERSION' (Sangat Penting!).
+4. Klik 'Deploy'.`);
+            } else if (errMsg.includes("Indeks anakan") || errMsg.includes("Child index")) {
+              reject("⚠️ ERROR FORMAT: Template Google Doc Anda memiliki paragraf kosong atau tabel yang strukturnya tidak didukung. Coba hapus baris kosong di bagian bawah template.");
+            } else {
+              reject(data.error);
+            }
           } else {
             console.log(`GAS Success [${functionName}]:`, data);
             resolve(data as T);
@@ -266,9 +289,13 @@ export const gasService = {
   getArsip: () => runGas<any[]>('getArsip'),
   uploadFile: (base64: string, fileName: string) => {
     const tenant = getStoredTenant();
-    return runGas<any>('uploadFile', base64, fileName, tenant?.folderId);
+    if (!tenant?.folderId) {
+      console.warn("Folder ID tidak ditemukan, menggunakan folder root default.");
+    }
+    return runGas<any>('uploadFile', base64, fileName, tenant?.folderId || '');
   },
   initApp: () => runGas<string>('initApp'),
+  debugPermissions: () => runGas<string>('debugPermissions'),
   loginByCode: (code: string) => runGas<any>('loginByCode', code),
   isLoggedIn: () => !!getStoredTenant(),
   getTenant: () => getStoredTenant(),

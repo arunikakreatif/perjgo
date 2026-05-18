@@ -1,5 +1,32 @@
 /**
  * perjadinGO - Backend Google Apps Script (Multi-Tenant Version)
+ * 
+ * PENTING: Jika muncul "Akses Ditolak: DriveApp", Anda HARUS menjalankan 
+ * fungsi 'initApp' secara manual di Editor Script (klik Run/Jalankan) 
+ * untuk memberikan izin akses ke Drive/Docs.
+ * 
+ * Scope Hint (Agar Otorisasi Terdeteksi):
+ * DriveApp.getRootFolder();
+ * DocumentApp.create("temp");
+ * SpreadsheetApp.getActiveSpreadsheet();
+ * 
+ * --- REKOMENDASI: Isi file appsscript.json Anda dengan ini ---
+ * {
+ *   "timeZone": "Asia/Jakarta",
+ *   "dependencies": {},
+ *   "exceptionLogging": "STACKDRIVER",
+ *   "runtimeVersion": "V8",
+ *   "webapp": {
+ *     "executeAs": "USER_ACCESSING",
+ *     "access": "MYSELF"
+ *   },
+ *   "oauthScopes": [
+ *     "https://www.googleapis.com/auth/drive",
+ *     "https://www.googleapis.com/auth/documents",
+ *     "https://www.googleapis.com/auth/spreadsheets",
+ *     "https://www.googleapis.com/auth/script.external_request"
+ *   ]
+ * }
  */
 
 // GANTI INI dengan ID Spreadsheet "Master" Anda
@@ -92,41 +119,52 @@ function getGlobalTemplates() {
 }
 
 /**
- * INITIALIZATION: Run this function once to setup the structure
- * and to AUTHORIZE the script to access Drive and Docs.
+ * FUNGSI KRITIKAL: Jalankan ini di Editor Apps Script jika muncul error 'Akses ditolak: DriveApp'
+ * 1. Di Editor, pilih fungsi 'initApp' di dropdown atas.
+ * 2. Klik tombol 'Jalankan' (Run).
+ * 3. Jika muncul 'Otorisasi diperlukan', klik 'Tinjau Izin'.
+ * 4. Klik Akun Google Anda.
+ * 5. Klik 'Advanced' / 'Lanjutan' (Kiri Bawah).
+ * 6. Klik 'Buka perjadinGO (tidak aman)'.
+ * 7. Klik 'Izinkan' / 'Allow'.
  */
 function initApp() {
   console.log("Memulai inisialisasi aplikasi...");
+  
+  // FORCE PERMISSIONS (Authorization Trigger)
+  try { DriveApp.getRootFolder(); } catch(e) {}
+  try { DocumentApp.create("Force Auth"); } catch(e) {}
+  
   const SS = getSS();
   
-  // PAKSA PROMPT OTORISASI (Authorization Trigger)
-  // Anda HARUS menjalankan fungsi 'initApp' secara MANUAL di Editor Google Apps Script
-  // Ini diperlukan agar skrip mendapatkan izin akses ke Google Drive, Docs, dan Spreadsheet.
   try {
     console.log("Mengecek izin Google Drive...");
-    const dummyFile = DriveApp.createFile('PERJADINGO_AUTH_TEST', 'File ini otomatis dibuat untuk verifikasi izin.');
-    const copy = dummyFile.makeCopy('PERJADINGO_AUTH_TEST_COPY');
+    const root = DriveApp.getRootFolder();
+    const dummyFile = DriveApp.createFile('AUTH_VERIFICATION', 'Testing permissions');
     dummyFile.setTrashed(true);
-    copy.setTrashed(true);
+    console.log("Akses Drive Berhasil: " + root.getName());
     
     console.log("Mengecek izin Google Docs...");
-    const doc = DocumentApp.create('PERJADINGO_AUTH_TEST_DOC');
-    DriveApp.getFileById(doc.getId()).setTrashed(true);
+    const tempDoc = DocumentApp.create("Temp Perm Test");
+    tempDoc.getBody().appendParagraph("Testing permissions");
+    tempDoc.saveAndClose();
+    DriveApp.getFileById(tempDoc.getId()).setTrashed(true);
+    console.log("Akses Docs Berhasil.");
+    
     console.log("Izin berhasil diverifikasi.");
   } catch (e) {
-    console.warn("Peringatan Otorisasi: " + e.message + ". Jika Anda melihat 'Access denied', silakan jalankan fungsi ini secara manual di Editor GAS.");
+    console.error("Gagal inisialisasi izin: " + e.toString());
+    throw new Error("PENTING: Anda harus klik 'Advanced' -> 'Go to ... (unsafe)' saat muncul jendela izin untuk mengaktifkan fitur upload.");
   }
   
-  createSheetIfNotExists("Pegawai", ["id", "name", "nik", "niap", "position", "pangkat", "golongan", "address"]);
+  const sheetPegawai = createSheetIfNotExists("Pegawai", ["id", "name", "nik", "niap", "position", "pangkat", "golongan", "address"]);
   
   // SPPD Migration/Setup
-  const sppdHeaders = ["id", "number", "purpose", "destination", "dateStart", "dateEnd", "transport", "budgetCode", "basis", "peopleCount", "employeeId1", "employeeId2", "employeeId3", "employeeId4", "employeeId5", "laporan1", "laporan2", "laporan3", "caption", "fotoUrl", "fotoId", "uangHarian", "uangBBM", "tglBayar"];
-  let sppdSheet = SS.getSheetByName("SPPD");
-  if (!sppdSheet) {
-    createSheetIfNotExists("SPPD", sppdHeaders);
-  } else {
-    // Sync headers and data
-    const currentHeaders = sppdSheet.getRange(1, 1, 1, sppdSheet.getLastColumn()).getValues()[0];
+  const sppdHeaders = ["id", "number", "purpose", "destination", "dateStart", "dateEnd", "transport", "budgetCode", "basis", "peopleCount", "employeeId1", "employeeId2", "employeeId3", "employeeId4", "employeeId5", "laporan1", "laporan2", "laporan3", "caption", "fotoUrl", "fotoId", "fotoUrl1", "fotoUrl2", "fotoUrl3", "fotoUrl4", "fotoUrl5", "uangHarian", "uangBBM", "tglBayar"];
+  let sppdSheet = SS.getSheetByName("SPPD") || createSheetIfNotExists("SPPD", sppdHeaders);
+  
+  // Sync headers and data
+  const currentHeaders = sppdSheet.getRange(1, 1, 1, Math.max(1, sppdSheet.getLastColumn())).getValues()[0];
     
     // Check if "basis" is missing
     if (currentHeaders.indexOf("basis") === -1) {
@@ -145,7 +183,7 @@ function initApp() {
     }
 
     // New report and SPJ headers migration
-    const additionalFields = ["laporan1", "laporan2", "laporan3", "caption", "fotoUrl", "fotoId", "uangHarian", "uangBBM", "tglBayar"];
+    const additionalFields = ["laporan1", "laporan2", "laporan3", "caption", "fotoUrl", "fotoId", "fotoUrl1", "fotoUrl2", "fotoUrl3", "fotoUrl4", "fotoUrl5", "uangHarian", "uangBBM", "tglBayar"];
     let lastColumn = sppdSheet.getLastColumn();
     let currentUpdatedHeaders = sppdSheet.getRange(1, 1, 1, lastColumn).getValues()[0];
     
@@ -156,15 +194,14 @@ function initApp() {
         lastColumn++;
       }
     });
-  }
-
+  
   createSheetIfNotExists("Config_Templates", ["type", "count", "templateId"]);
   createSheetIfNotExists("Arsip_Dokumen", ["id_arsip", "sppd_number", "tipe_dokumen", "file_name", "date_generated", "file_url"]);
   createSheetIfNotExists("Konfigurasi", ["Parameter", "Nilai"]);
   
   // Set default templates if empty
   const templateSheet = getSS().getSheetByName("Config_Templates");
-  if (templateSheet.getLastRow() === 1) {
+  if (templateSheet && templateSheet.getLastRow() <= 1) {
     const types = ["SPD", "Laporan", "SPJ"];
     const rows = [];
     types.forEach(type => {
@@ -172,12 +209,14 @@ function initApp() {
         rows.push([type, i, ""]); 
       }
     });
-    templateSheet.getRange(2, 1, rows.length, 3).setValues(rows);
+    if (rows.length > 0) {
+      templateSheet.getRange(2, 1, rows.length, 3).setValues(rows);
+    }
   }
   
   // Set default config if empty
   const configSheet = getSS().getSheetByName("Konfigurasi");
-  if (configSheet.getLastRow() === 1) {
+  if (configSheet && configSheet.getLastRow() <= 1) {
     const defaultData = [
       ["nama_desa", "Desa Poncol"],
       ["kecamatan", "Kecamatan Poncol"],
@@ -191,6 +230,7 @@ function initApp() {
       ["email", "desa.poncol@magetan.go.id"],
       ["web", "www.desaponcol.id"],
       ["kodepos", "63362"],
+      ["logo_url", "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Lambang_Kabupaten_Magetan.png/150px-Lambang_Kabupaten_Magetan.png"],
       ["folder_pdf_id", ""]
     ];
     configSheet.getRange(2, 1, defaultData.length, 2).setValues(defaultData);
@@ -202,6 +242,51 @@ function initApp() {
   }
 
   return "Infrastruktur Berhasil Diinisialisasi!";
+}
+
+/**
+ * PENTING: Jalankan fungsi ini secara manual di Editor Apps Script
+ * jika muncul error "Akses Ditolak: DriveApp".
+ * Ini akan memaksa Google untuk meminta izin akses.
+ */
+function debugPermissions() {
+  console.log("Mengecek akses DriveApp...");
+  try {
+    const root = DriveApp.getRootFolder();
+    console.log("Root Folder Name: " + root.getName());
+    const dummy = DriveApp.createFile("PERM_TEST", "ok");
+    dummy.setTrashed(true);
+  } catch(e) {
+    throw new Error("Gagal akses DriveApp: " + e.message + ". Silakan klik 'Advanced' -> 'Go to...' saat muncul jendela izin.");
+  }
+  
+  console.log("Mengecek akses DocumentApp...");
+  try {
+    const doc = DocumentApp.create("TEST_PERMISSIONS");
+    doc.getBody().appendParagraph("ok");
+    doc.saveAndClose();
+    DriveApp.getFileById(doc.getId()).setTrashed(true);
+  } catch(e) {
+     throw new Error("Gagal akses DocumentApp: " + e.message);
+  }
+  
+  console.log("Mengecek akses SpreadsheetApp...");
+  try {
+    const ssName = SpreadsheetApp.getActiveSpreadsheet().getName();
+    console.log("Spreadsheet Name: " + ssName);
+  } catch(e) {
+    console.warn("Script tidak terikat spreadsheet, menggunakan ID Master.");
+  }
+
+  console.log("Mengecek akses Master Sheet...");
+  try {
+    const masterSS = SpreadsheetApp.openById(MASTER_SS_ID);
+    console.log("Master SS Name: " + masterSS.getName());
+  } catch(e) {
+    throw new Error("Gagal Akses Master Sheet: " + e.message + ". Pastikan ID MASTER_SS_ID benar dan Anda memiliki akses Editor ke file tersebut.");
+  }
+  
+  return "✅ SEMUA IZIN BERHASIL! Silakan Deploy -> New Version untuk memperbarui aplikasi.";
 }
 
 /**
@@ -243,10 +328,14 @@ function updateConfig(data) {
   const { templates, ...properties } = data;
   
   // Update sheet Konfigurasi
-  const configSheet = getSS().getSheetByName("Konfigurasi");
+  const configSheet = createSheetIfNotExists("Konfigurasi", ["Parameter", "Nilai"]);
   const rows = Object.keys(properties).map(key => [key, properties[key]]);
-  configSheet.getRange(2, 1, configSheet.getLastRow() > 1 ? configSheet.getLastRow() - 1 : 1, 2).clearContent();
-  configSheet.getRange(2, 1, rows.length, 2).setValues(rows);
+  if (configSheet.getLastRow() > 1) {
+    configSheet.getRange(2, 1, configSheet.getLastRow() - 1, 2).clearContent();
+  }
+  if (rows.length > 0) {
+    configSheet.getRange(2, 1, rows.length, 2).setValues(rows);
+  }
 
   // Update Script Properties for fast access in other functions
   PropertiesService.getScriptProperties().setProperties(properties);
@@ -367,6 +456,11 @@ function saveSPD(input) {
       "caption": input.caption || "",
       "fotoUrl": input.fotoUrl || "",
       "fotoId": input.fotoId || "",
+      "fotoUrl1": input.fotoUrl1 || "",
+      "fotoUrl2": input.fotoUrl2 || "",
+      "fotoUrl3": input.fotoUrl3 || "",
+      "fotoUrl4": input.fotoUrl4 || "",
+      "fotoUrl5": input.fotoUrl5 || "",
       "uangHarian": input.uangHarian || 0,
       "uangBBM": input.uangBBM || 0,
       "tglBayar": input.tglBayar || ""
@@ -479,11 +573,105 @@ function generateDocument(sppdId, docType, extraData) {
     updateConfigValue("folder_pdf_id", pdfFolder.getId());
   }
 
+  // JIKA Tipe dok adalah "Laporan", gunakan generator HTML yang sangat ketat sesuai permintaan user
+  if (docType === "Laporan") {
+    try {
+      const pdfBlob = generateHtmlToPdfLaporan(sppd, config);
+      const pdfFile = pdfFolder.createFile(pdfBlob.setName(fileName + ".pdf"));
+      pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      
+      const fileUrl = `https://drive.google.com/file/d/${pdfFile.getId()}/view?usp=sharing`;
+      
+      // CATAT KE SHEET ARSIP
+      const arsipSheet = getSS().getSheetByName("Arsip_Dokumen");
+      arsipSheet.appendRow([
+        Utilities.getUuid(),
+        sppd.number,
+        docType,
+        fileName + ".pdf",
+        timestamp,
+        fileUrl
+      ]);
+      
+      return fileUrl;
+    } catch (e) {
+      console.error("HTML Laporan Error: " + e.message);
+      // Fallback to old Google Doc flow if HTML generation fails
+    }
+  }
+
   // Salin template ke file baru (Temporary Google Doc)
   const newFile = templateDoc.makeCopy(fileName + "_TEMP");
   const newDocId = newFile.getId();
   const doc = DocumentApp.openById(newDocId);
   const body = doc.getBody();
+  
+  // Optimization: Reduce margins to give more vertical space
+  try {
+    const section = body.getParent().asDocument().getSections()[0];
+    if (section) {
+      section.setMarginTop(20);
+      section.setMarginBottom(20);
+      section.setMarginLeft(50);
+      section.setMarginRight(50);
+    }
+  } catch(e) {
+    try {
+      body.setMarginTop(20);
+      body.setMarginBottom(20);
+    } catch(err) {}
+  }
+  
+  // 0. Ensure reports are separated correctly if needed
+  const allParas = body.getParagraphs();
+  
+  // Set A4 Paper Size if possible (defaults to Letter in some locales)
+  try {
+    body.setPageWidth(595); // A4 Width in points (approx)
+    body.setPageHeight(842); // A4 Height in points (approx)
+  } catch(e) {}
+
+  // Strict text truncation and compaction for Laporan to prevent overflow
+  if (docType === "Laporan") {
+    ["laporan1", "laporan2", "laporan3"].forEach(f => {
+       if (sppd[f] && sppd[f].length > 700) {
+         sppd[f] = sppd[f].substring(0, 697) + "...";
+       }
+    });
+
+    allParas.forEach(p => {
+      try {
+        p.setSpacingAfter(0);
+        p.setSpacingBefore(0);
+        p.setLineSpacing(1);
+        p.setIndentFirstLine(0);
+        p.setIndentStart(0);
+        p.setIndentEnd(0);
+      } catch(e) {}
+    });
+  }
+  
+  // Force Page Breaks on Kops and Dokumentasi title
+  let foundKopCount = 0;
+  let lastWasKopText = false;
+  allParas.forEach(p => {
+    const text = p.getText().trim();
+    const looksLikeKop = text.includes("PEMERINTAH KABUPATEN") || text.includes("KECAMATAN") || text.includes("KABUPATEN MAGETAN");
+    const isDokumentasi = text.includes("DOKUMENTASI PERJALANAN DINAS");
+    
+    if (looksLikeKop && !lastWasKopText) {
+      foundKopCount++;
+      if (foundKopCount > 1) {
+        try { p.setPageBreak(true); } catch(e) {}
+      }
+      lastWasKopText = true;
+    } else if (isDokumentasi) {
+      try { p.setPageBreak(true); } catch(e) {}
+      lastWasKopText = false;
+    } else if (text !== "") {
+      lastWasKopText = false;
+    }
+  });
   
   // Helper to fetch value with priority
   const getV = (key, fallback = "") => {
@@ -494,6 +682,7 @@ function generateDocument(sppdId, docType, extraData) {
     return fallback;
   };
 
+  // Minimal replacements loop
   const replacements = {
     "{{NOMOR_SPPD}}": sppd.number || "",
     "{{DASAR_SPPD}}": sppd.basis || "-",
@@ -552,7 +741,8 @@ function generateDocument(sppdId, docType, extraData) {
   const empMap = {};
   employees.forEach(e => { if (e.id) empMap[e.id] = e; });
   for (let i = 1; i <= 5; i++) {
-    const emp = sppd[`employeeId${i}`] ? empMap[sppd[`employeeId${i}`]] : null;
+    const empId = sppd[`employeeId${i}`] || (extraData && extraData.employeeIds ? extraData.employeeIds[i-1] : null);
+    const emp = empId ? empMap[empId] : null;
     replacements[`{{NAMA${i}}}`] = emp ? String(emp.name || "") : "";
     replacements[`{{NIK${i}}}`] = emp ? String(emp.nik || "") : "";
     replacements[`{{JABATAN${i}}}`] = emp ? String(emp.position || "") : "";
@@ -643,6 +833,26 @@ function generateDocument(sppdId, docType, extraData) {
       return;
     }
 
+    // PHOTO RESIZING LOGIC
+    let maxW = 480; // Standard for A4 with margins
+    let maxH = 150; // Maximum allowed height to keep within 1 page
+    
+    if (docType === "Dokumentasi") {
+       maxW = 500;
+       maxH = 400; // Larger for dedicated photo page
+    }
+
+    if (sppd.image_width) maxW = parseInt(sppd.image_width);
+    if (sppd.image_height) maxH = parseInt(sppd.image_height);
+
+    const parent = element.getParent ? element.getParent() : null;
+    if (parent && parent.getNextSibling) {
+      const next = parent.getNextSibling();
+      if (next && next.getType() === DocumentApp.ElementType.PARAGRAPH && next.asParagraph().getText().trim() === "") {
+        try { next.removeFromParent(); } catch(e) {}
+      }
+    }
+
     allPhotoPatterns.forEach(p => {
       const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       let search = element.findText(escaped);
@@ -657,32 +867,21 @@ function generateDocument(sppdId, docType, extraData) {
              para.setLineSpacing(1);
              para.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
              
-             // Use InlineImage for easier centering with paragraph alignment
              const img = para.appendInlineImage(blob);
-             
-             const maxW = 450; 
-             const maxH = 250; 
              let w = img.getWidth(); 
              let h = img.getHeight();
              if (w > maxW) { h *= (maxW/w); w = maxW; }
              if (h > maxH) { w *= (maxH/h); h = maxH; }
-             
              img.setWidth(w).setHeight(h);
           } else {
-             // Try putting it as inline if not in paragraph (e.g. Table Cell)
              const index = container.getChildIndex ? container.getChildIndex(textElem) : 0;
              if (container.insertInlineImage) {
                 const img = container.insertInlineImage(index, blob);
-                const maxW = 450; 
-                const maxH = 175; 
                 let w = img.getWidth(); let h = img.getHeight();
                 if (w > maxW) { h *= (maxW/w); w = maxW; }
                 if (h > maxH) { w *= (maxH/h); h = maxH; }
                 img.setWidth(w).setHeight(h);
-                
-                if (container.setAlignment) {
-                   container.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
-                }
+                if (container.setAlignment) container.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
              }
           }
         } catch (e) { 
@@ -716,17 +915,58 @@ function generateDocument(sppdId, docType, extraData) {
     }
   });
 
+  // Cleanup: Remove trailing empty paragraphs at very end of document to prevent blank pages
+  try {
+    const paras = body.getParagraphs();
+    for (let i = paras.length - 1; i >= 0; i--) {
+      const p = paras[i];
+      if (!p || !p.getParent()) continue;
+      
+      const text = p.getText().trim();
+      const numChildren = p.getNumChildren();
+      
+      if (text === "" && numChildren === 0) {
+        try { p.removeFromParent(); } catch(e) {}
+      } else if (text === "" && numChildren > 0) {
+        // Safe check for images/other elements
+        let hasContent = false;
+        try {
+          for (let j = 0; j < numChildren; j++) {
+            const child = p.getChild(j);
+            if (child && child.getType() !== DocumentApp.ElementType.TEXT) {
+              hasContent = true;
+              break;
+            }
+          }
+        } catch(e) {}
+        
+        if (!hasContent) {
+          try { p.removeFromParent(); } catch(e) {}
+        } else {
+          break; // Stop at first non-empty
+        }
+      } else {
+        break; 
+      }
+    }
+  } catch(err) {
+    console.error("Cleanup error: " + err.message);
+  }
+
   doc.saveAndClose();
+  SpreadsheetApp.flush();
+  Utilities.sleep(500); // Wait for Google to process save
   
   // EKSPOR KE PDF
-  const pdfBlob = newFile.getAs('application/pdf').setName(fileName + ".pdf");
+  const pdfBlob = newFile.getBlob().getAs('application/pdf').setName(fileName + ".pdf");
   const pdfFile = pdfFolder.createFile(pdfBlob);
   pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   
   // Hapus temporary Doc
-  newFile.setTrashed(true);
+  try { newFile.setTrashed(true); } catch(e) {}
 
-  const fileUrl = pdfFile.getUrl();
+  // Use a more direct Drive viewer URL to avoid "File Not Found" errors in Docs Viewer
+  const fileUrl = `https://drive.google.com/file/d/${pdfFile.getId()}/view?usp=sharing`;
 
   // CATAT KE SHEET ARSIP
   const arsipSheet = getSS().getSheetByName("Arsip_Dokumen");
@@ -742,8 +982,360 @@ function generateDocument(sppdId, docType, extraData) {
   return fileUrl;
 }
 
+
+/**
+ * NEW: GENERATE LAPORAN VIA HTML TO PDF
+ * Following the strict user specification for 1 person = 2 pages (Doc + Photo)
+ */
+function generateHtmlToPdfLaporan(sppd, config) {
+  const employees = getPegawai();
+  const empMap = {};
+  employees.forEach(e => { if (e.id) empMap[e.id] = e; });
+
+  // Helper function to get base64 from URL to ensure images show in PDF
+  const getBase64FromUrl = (url) => {
+    if (!url || typeof url !== 'string' || !url.startsWith('http')) return url;
+    
+    // Safety Fallback for Magetan Logo if everything else fails
+    const MAGETAN_FALLBACK_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Lambang_Kabupaten_Magetan.png/150px-Lambang_Kabupaten_Magetan.png";
+    
+    const fetchWithRetry = (targetUrl) => {
+      try {
+        const response = UrlFetchApp.fetch(targetUrl, { 
+          muteHttpExceptions: true,
+          validateHttpsCertificates: false,
+          followRedirects: true
+        });
+        if (response.getResponseCode() === 200) {
+          const blob = response.getBlob();
+          const contentType = blob.getContentType();
+          // Verify it's an image
+          if (contentType.indexOf("image") !== -1) {
+             return "data:" + contentType + ";base64," + Utilities.base64Encode(blob.getBytes());
+          }
+        }
+      } catch (e) {
+        console.error("Fetch failed for " + targetUrl + ": " + e.message);
+      }
+      return null;
+    };
+
+    // Try primary URL first
+    let result = fetchWithRetry(url);
+    if (result) return result;
+
+    // Try fallback URL if primary fails and is not the fallback itself
+    if (url !== MAGETAN_FALLBACK_URL) {
+      result = fetchWithRetry(MAGETAN_FALLBACK_URL);
+      if (result) return result;
+    }
+
+    return url; // Extreme fallback to raw URL
+  };
+
+  const pelaporList = [];
+  for (let i = 1; i <= 5; i++) {
+    const empId = sppd[`employeeId${i}`];
+    if (empId) {
+      const emp = empMap[empId];
+      if (emp) {
+        // Individual photo per person logic: check fotoUrl1, fotoUrl2... then fallback to global fotoUrl
+        const specificFoto = sppd[`fotoUrl${i}`] || sppd.fotoUrl || "";
+        pelaporList.push({
+          NAMA: emp.name,
+          FOTO_URL: getBase64FromUrl(specificFoto), // Convert to base64
+          CAPTION: sppd.caption || "Dokumentasi perjalanan dinas"
+        });
+      }
+    }
+  }
+
+  // Defaults if empty
+  if (pelaporList.length === 0) {
+    pelaporList.push({ NAMA: "Belum Ditentukan", FOTO_URL: "", CAPTION: "" });
+  }
+
+  // Logo mapping (base64)
+  const defaultLogo = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Lambang_Kabupaten_Magetan.png/150px-Lambang_Kabupaten_Magetan.png";
+  const logoUrlInput = config.logo_url || defaultLogo;
+  const logoUrl = getBase64FromUrl(logoUrlInput);
+
+  let html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Perjalanan Dinas - ${sppd.number}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #000; background: #fff; line-height: 1.4; }
+
+    .halaman {
+      width: 210mm;
+      height: 297mm;
+      max-height: 297mm;
+      overflow: hidden;
+      padding: 10mm 15mm 15mm 20mm; /* Reduced top padding */
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      background: white;
+      box-sizing: border-box;
+    }
+
+    /* Page break for printing */
+    @media print {
+      body { margin: 0; }
+      .halaman {
+        page-break-before: always;
+        break-before: page;
+        border: none;
+      }
+      .halaman:first-child {
+        page-break-before: auto;
+        break-before: auto;
+      }
+    }
+
+    @media screen {
+      body { background: #e0e0e0; padding: 20px; }
+      .halaman {
+        margin: 0 auto 20px auto;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      }
+    }
+
+    .kop-surat-table {
+      width: 100%;
+      margin-bottom: 5px;
+      border-collapse: collapse;
+    }
+    .kop-logo-cell {
+      width: 70px;
+      padding-right: 20px;
+      vertical-align: middle;
+      text-align: center;
+    }
+    .kop-logo {
+      height: 80px;
+      width: auto;
+      display: block;
+    }
+    .kop-teks-cell {
+      text-align: center;
+      vertical-align: middle;
+    }
+    .nama-pemda { font-size: 13pt; font-weight: bold; margin: 0; padding: 0; line-height: 1.1; }
+    .nama-kecamatan { font-size: 13pt; font-weight: bold; margin: 0; padding: 0; line-height: 1.1; }
+    .nama-desa { font-size: 16pt; font-weight: bold; text-transform: uppercase; margin: 0; padding: 0; line-height: 1.2; }
+    .info-kontak { font-size: 9pt; margin: 0; padding: 0; line-height: 1.1; }
+
+    .kop-garis {
+      border-bottom: 4px double black;
+      margin-top: 1px;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+
+    .judul-dokumen {
+      text-align: center;
+      font-weight: bold;
+      font-size: 12pt;
+      text-transform: uppercase;
+      margin: 4px 0 8px 0;
+      text-decoration: underline;
+      flex-shrink: 0;
+    }
+
+    .body-laporan {
+      font-size: 11pt;
+      line-height: 1.3;
+      text-align: justify;
+      margin-bottom: 20px;
+    }
+
+    .section-heading {
+      font-weight: bold;
+      margin-top: 8px;
+      margin-bottom: 4px;
+    }
+
+    .item-laporan {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+    .item-laporan .nomor { flex-shrink: 0; }
+    .item-laporan .isi { flex: 1; }
+
+    .blok-ttd-table {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+      flex-shrink: 0;
+    }
+    .ttd-cell-kiri { width: 50%; text-align: center; vertical-align: top; }
+    .ttd-cell-kanan { width: 50%; text-align: center; vertical-align: top; }
+    .ttd-nama-row { height: 140px; vertical-align: bottom; }
+    .ttd-nama-teks { font-weight: bold; text-decoration: underline; text-align: center; }
+    .ttd-nama-teks-kanan { font-weight: bold; text-decoration: underline; text-align: center; }
+
+    .area-dokumentasi {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding-top: 8px;
+      overflow: hidden;
+    }
+    .caption-foto {
+      text-align: center;
+      margin-bottom: 15px;
+      font-size: 11pt;
+      font-style: italic;
+    }
+    .foto-dokumentasi {
+      display: block;
+      max-width: 440px;
+      max-height: 320px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      margin: 0 auto;
+      border: 1px solid #ddd;
+    }
+    .foto-placeholder {
+      width: 420px;
+      height: 250px;
+      max-width: 100%;
+      background: #f9f9f9;
+      border: 1px dashed #bbb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-size: 11pt;
+    }
+  </style>
+</head>
+<body>`;
+
+  const KAB = (config.kabupaten || "").replace(/Kabupaten\s+/i, "").toUpperCase();
+  const KEC = (config.kecamatan || "").replace(/Kecamatan\s+/i, "").toUpperCase();
+  const DESA = config.nama_desa;
+  const DESA_UPPER = (config.nama_desa || "").toUpperCase();
+  const ALAMAT = config.alamat_kantor;
+  const EMAIL = config.email;
+  const WEB = config.web;
+  const KODEPOS = config.kodepos;
+  const KADES = config.kepala_desa;
+  const NOMOR = sppd.number;
+  const TGL_BERANGKAT = formatDateIndo(sppd.dateStart);
+  const TGL_KEMBALI = formatDateIndo(sppd.dateEnd);
+  const TUJUAN = sppd.destination;
+  const MAKSUD = sppd.purpose;
+  const LAP1 = sppd.laporan1 || "-";
+  const LAP2 = sppd.laporan2 || "-";
+  const LAP3 = sppd.laporan3 || "-";
+
+  pelaporList.forEach((pelapor, index) => {
+    // KOP SURAT SHARED
+    const kopSuratHtml = `
+    <table class="kop-surat-table">
+      <tr>
+        <td class="kop-logo-cell">
+          <img class="kop-logo" src="${logoUrl}" alt="Logo">
+        </td>
+        <td class="kop-teks-cell">
+          <div class="nama-pemda">PEMERINTAH KABUPATEN ${KAB}</div>
+          <div class="nama-kecamatan">KECAMATAN ${KEC}</div>
+          <div class="nama-desa">${DESA_UPPER}</div>
+          <div class="info-kontak">${ALAMAT}</div>
+          <div class="info-kontak">email : ${EMAIL} &nbsp; Website : ${WEB}</div>
+          <div class="info-kontak" style="text-align: right; padding-right: 20px;">Kode Pos : ${KODEPOS}</div>
+        </td>
+      </tr>
+    </table>
+    <div class="kop-garis"></div>`;
+
+    // Halaman Laporan
+    html += `
+  <div class="halaman">
+    ${kopSuratHtml}
+
+    <div class="judul-dokumen">LAPORAN PERJALANAN DINAS</div>
+
+    <div class="body-laporan">
+      <div class="section-heading">I. PENDAHULUAN</div>
+      <div style="margin-left: 16px;">
+        <p style="margin-bottom:2px;">a. Dalam rangka meningkatkan efektivitas penyelenggaraan pemerintahan desa serta mendukung berbagai program pembangunan dan pelayanan kepada masyarakat, diperlukan berbagai kegiatan yang melibatkan perjalanan dinas bagi aparatur desa.</p>
+        <p style="margin-bottom:1px;">b. Landasan Hukum</p>
+        <p style="margin-left:16px; margin-bottom:2px;">Surat Tugas Kepala Desa Nomor : ${NOMOR} tanggal ${TGL_BERANGKAT} Tentang ${MAKSUD} di ${TUJUAN}</p>
+        <p style="margin-bottom:1px;">c. Maksud dan Tujuan</p>
+        <p style="margin-left:16px;">Mengikuti ${MAKSUD} di ${TUJUAN}</p>
+      </div>
+
+      <div class="section-heading">II. KEGIATAN YANG DILAKSANAKAN</div>
+      <p>Perjalanan Dinas dalam rangka Kegiatan ${MAKSUD} di ${TUJUAN} pada ${TGL_BERANGKAT} sampai dengan ${TGL_KEMBALI}</p>
+
+      <div class="section-heading">III. HASIL YANG DICAPAI</div>
+      <div class="item-laporan"><span class="nomor">1.</span><span class="isi">${LAP1}</span></div>
+      <div class="item-laporan"><span class="nomor">2.</span><span class="isi">${LAP2}</span></div>
+      <div class="item-laporan"><span class="nomor">3.</span><span class="isi">${LAP3}</span></div>
+      <div style="margin-top: 10px;">
+        <span style="font-weight: bold;">IV. PENUTUP </span>
+        <span>Demikian laporan ini disampaikan untuk menjadikan periksa</span>
+      </div>
+    </div>
+
+    <table class="blok-ttd-table">
+      <tr>
+        <td class="ttd-cell-kiri">Mengetahui,</td>
+        <td class="ttd-cell-kanan">Dibuat di &nbsp;&nbsp;: ${DESA}</td>
+      </tr>
+      <tr>
+        <td class="ttd-cell-kiri">KEPALA DESA ${DESA_UPPER}</td>
+        <td class="ttd-cell-kanan">Pada tanggal : ${TGL_KEMBALI}</td>
+      </tr>
+      <tr>
+        <td class="ttd-cell-kiri"></td>
+        <td class="ttd-cell-kanan" style="height: 20px; vertical-align: bottom;">Pelapor,</td>
+      </tr>
+      <tr class="ttd-nama-row">
+        <td class="ttd-cell-kiri"><div class="ttd-nama-teks">${KADES}</div></td>
+        <td class="ttd-cell-kanan"><div class="ttd-nama-teks-kanan">${pelapor.NAMA}</div></td>
+      </tr>
+    </table>
+  </div>`;
+
+    // Halaman Dokumentasi
+    const fotoHtml = pelapor.FOTO_URL 
+      ? `<img class="foto-dokumentasi" src="${pelapor.FOTO_URL}" alt="Logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+         <div class="foto-placeholder" style="display:none">[ Foto Tidak Tersedia ]</div>`
+      : `<div class="foto-placeholder">[ Foto Tidak Tersedia ]</div>`;
+
+    html += `
+  <div class="halaman">
+    ${kopSuratHtml}
+
+    <div class="judul-dokumen">DOKUMENTASI PERJALANAN DINAS</div>
+
+    <div class="area-dokumentasi">
+      <div class="caption-foto">${pelapor.CAPTION}</div>
+      ${fotoHtml}
+    </div>
+  </div>`;
+  });
+
+  html += `</body></html>`;
+
+  const blob = Utilities.newBlob(html, "text/html", "Laporan.html");
+  return blob.getAs("application/pdf");
+}
+
 function updateConfigValue(key, value) {
-  const sheet = getSS().getSheetByName("Konfigurasi");
+  const sheet = createSheetIfNotExists("Konfigurasi", ["Parameter", "Nilai"]);
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] == key) {
@@ -802,6 +1394,11 @@ function fixDataAlignment() {
 
 function uploadFile(base64Data, fileName, targetFolderId) {
   try {
+    // Check DriveApp explicitly
+    if (typeof DriveApp === 'undefined') {
+      throw new Error("DriveApp tidak terdeteksi. Otorisasi scope 'drive' mungkin diblokir atau belum diberikan.");
+    }
+
     const contentType = base64Data.substring(base64Data.indexOf(":") + 1, base64Data.indexOf(";"));
     const bytes = Utilities.base64Decode(base64Data.split(",")[1]);
     const blob = Utilities.newBlob(bytes, contentType, fileName);
@@ -825,7 +1422,7 @@ function uploadFile(base64Data, fileName, targetFolderId) {
           folder = DriveApp.createFolder("Dokumentasi_SPPD");
         }
       } catch (e) {
-        throw new Error("Akses ditolak ke DriveApp. Pastikan Anda telah menjalankan fungsi 'initApp' di Editor GAS dan memberikan izin akses Drive.");
+        throw new Error("Akses ditolak ke DriveApp. Pastikan Anda telah menjalankan fungsi 'initApp' (ATAU 'debugPermissions') di Editor GAS secara MANUAL dan memberikan izin akses Drive. Jika masih gagal, pastikan Anda telah men-Deploy sebagai 'NEW VERSION' setelah memberi izin.");
       }
     }
     
@@ -869,12 +1466,16 @@ function formatRupiah(amount) {
  * DASHBOARD
  */
 function getDashboardStats() {
-  const pegawai = getSS().getSheetByName("Pegawai").getLastRow() - 1;
-  const sppd = getSS().getSheetByName("SPPD").getLastRow() - 1;
+  const ss = getSS();
+  const sheetPegawai = ss.getSheetByName("Pegawai");
+  const sheetSPPD = ss.getSheetByName("SPPD");
+  
+  const pegawai = (sheetPegawai && sheetPegawai.getLastRow() > 0) ? (sheetPegawai.getLastRow() - 1) : 0;
+  const sppd = (sheetSPPD && sheetSPPD.getLastRow() > 0) ? (sheetSPPD.getLastRow() - 1) : 0;
   
   return {
-    pegawai: pegawai > 0 ? pegawai : 0,
-    sppd: sppd > 0 ? sppd : 0,
+    pegawai: pegawai >= 0 ? pegawai : 0,
+    sppd: sppd >= 0 ? sppd : 0,
     laporan: Math.floor(sppd * 0.8),
     spj: Math.floor(sppd * 0.7),
     chart: [65, 40, 85, 30, 55, 70]
@@ -956,12 +1557,16 @@ function editPegawai(id, data) {
  * UTILS
  */
 function createSheetIfNotExists(name, headers) {
-  let sheet = getSS().getSheetByName(name);
+  const ss = getSS();
+  let sheet = ss.getSheetByName(name);
   if (!sheet) {
-    sheet = getSS().insertSheet(name);
-    sheet.appendRow(headers);
-    sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#f3f3f3");
+    sheet = ss.insertSheet(name);
+    if (headers && headers.length > 0) {
+      sheet.appendRow(headers);
+      sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#f3f3f3");
+    }
   }
+  return sheet;
 }
 
 function getArsip() {
