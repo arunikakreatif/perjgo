@@ -17,9 +17,38 @@ export default function App() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
-    // Cek apakah user sudah login (ada di storage)
-    setIsAuthenticated(gasService.isLoggedIn());
-    setIsCheckingAuth(false);
+    // Cek apakah ada parameter kode desa di URL (misal: ?code=Desa_010 atau ?desa=Desa_010)
+    const params = new URLSearchParams(window.location.search);
+    const codeFromUrl = params.get('code') || params.get('desa') || params.get('tenant');
+
+    if (codeFromUrl) {
+      setIsCheckingAuth(true);
+      gasService.loginByCode(codeFromUrl)
+        .then(result => {
+          if (result.status === 'success') {
+            localStorage.setItem('perjadin_tenant', JSON.stringify(result));
+            setIsAuthenticated(true);
+            setCurrentPage('dashboard');
+            
+            // Bersihkan query parameter dari Address Bar agar tampil rapi & siap dibagikan kembali
+            const newUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+          } else {
+            console.warn("Autologin gagal: " + (result.message || "Kode tidak terdaftar"));
+            setIsAuthenticated(gasService.isLoggedIn());
+          }
+        })
+        .catch(err => {
+          console.error("Gagal melakukan autologin dari URL:", err);
+          setIsAuthenticated(gasService.isLoggedIn());
+        })
+        .finally(() => {
+          setIsCheckingAuth(false);
+        });
+    } else {
+      setIsAuthenticated(gasService.isLoggedIn());
+      setIsCheckingAuth(false);
+    }
   }, []);
 
   const handleLoginSuccess = () => {
