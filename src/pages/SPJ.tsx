@@ -47,7 +47,21 @@ const SPJ: React.FC = () => {
     fetchData();
   }, []);
 
-  const needsSPJ = sppdList.filter(s => !s.uangHarian || s.uangHarian === 0);
+  const formatDateIndo = (dateStr: string) => {
+    if (!dateStr) return "-";
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const y = parts[0];
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      return `${d} ${months[m] || ''} ${y}`;
+    }
+    return dateStr;
+  };
+
+  const needsSPJ = [...sppdList].reverse().filter(s => !s.uangHarian || s.uangHarian === 0);
+  const completedSPJ = [...sppdList].reverse().filter(s => s.uangHarian && s.uangHarian > 0);
 
   const handleOpenSPJ = (item: SPPD) => {
     setSelectedSPPD({
@@ -90,8 +104,11 @@ const SPJ: React.FC = () => {
         setPrinting(true);
         gasService.generateDocument(enrichedData.id, 'SPJ', enrichedData)
           .then(url => {
-            window.open(url, '_blank');
             setPrinting(false);
+            const newWin = window.open(url, '_blank');
+            if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+              window.location.href = url;
+            }
             setTimeout(() => {
               setSelectedSPPD(null);
             }, 2000);
@@ -99,7 +116,7 @@ const SPJ: React.FC = () => {
           .catch(err => {
             setPrinting(false);
             console.error("Print failed", err);
-            alert("Gagal cetak PDF SPJ: " + err.message);
+            alert("Gagal cetak PDF SPJ: " + (err?.message || String(err)));
           });
       })
       .catch(err => {
@@ -250,30 +267,44 @@ const SPJ: React.FC = () => {
           <h3 className="font-bold uppercase tracking-widest text-xs">Perlu SPJ ({needsSPJ.length})</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {needsSPJ.map(item => (
-            <div key={item.id} className="bg-white border border-outline-variant rounded-xl p-5 shadow-sm hover:shadow-md transition-all group">
-              <p className="text-[10px] font-bold text-on-surface-variant uppercase mb-2 tnum">{item.number}</p>
-              <h4 className="font-bold text-on-surface mb-1 line-clamp-1">{item.purpose}</h4>
-              <p className="text-xs text-on-surface-variant mb-4">{item.destination}</p>
-              
-              <div className="flex items-center justify-between pt-4 border-t border-outline-variant/30">
-                <span className="text-[10px] font-medium text-on-surface-variant tnum">{item.dateStart}</span>
-                <button 
-                  onClick={() => handleOpenSPJ(item)}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary-hover transition-colors"
-                >
-                  Buat SPJ
-                  <FileText size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
-          {needsSPJ.length === 0 && (
-            <div className="col-span-full bg-surface-container-low/30 border border-dashed border-outline-variant rounded-xl p-8 text-center">
-              <p className="text-sm font-medium text-on-surface-variant">Hebat! Semua rincian biaya SPJ telah diinput.</p>
-            </div>
-          )}
+        <div className="bg-white border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+           <div className="overflow-x-auto">
+             <table className="w-full text-left border-collapse">
+                <thead className="bg-[#F4F6F9] text-[#718096] text-[11px] font-bold uppercase tracking-wide">
+                  <tr>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Nomor SPPD</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Maksud Perjalanan</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Waktu</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0] text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E2E8F0] text-sm bg-white">
+                  {needsSPJ.map(item => (
+                    <tr key={item.id} className="hover:bg-[#1B4F8A]/5 transition-colors">
+                      <td className="px-6 py-4 font-bold text-primary tnum">{item.number}</td>
+                      <td className="px-6 py-4 text-on-surface font-medium truncate max-w-xs">{item.purpose}</td>
+                      <td className="px-6 py-4 text-on-surface-variant tnum">{formatDateIndo(item.dateStart)}</td>
+                      <td className="px-6 py-4 text-right">
+                         <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => handleOpenSPJ(item)}
+                              className="px-3 py-1.5 bg-[#1B4F8A] hover:bg-[#1B4F8A]/80 text-white text-xs font-bold rounded-lg shadow-sm transition-all active:scale-95 inline-flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <span>Buat SPJ</span>
+                              <FileText size={14} />
+                            </button>
+                         </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {needsSPJ.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-on-surface-variant font-medium">Hebat! Semua rincian biaya SPJ telah diinput.</td>
+                    </tr>
+                  )}
+                </tbody>
+             </table>
+           </div>
         </div>
       </div>
 
@@ -285,21 +316,21 @@ const SPJ: React.FC = () => {
         <div className="bg-white border border-outline-variant rounded-xl shadow-sm overflow-hidden">
            <div className="overflow-x-auto">
              <table className="w-full text-left border-collapse">
-                <thead className="bg-surface-container-low text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                <thead className="bg-[#F4F6F9] text-[#718096] text-[11px] font-bold uppercase tracking-wide border-b border-[#E2E8F0]">
                   <tr>
-                    <th className="px-6 py-4">Nomor SPPD</th>
-                    <th className="px-6 py-4">Maksud Perjalanan</th>
-                    <th className="px-6 py-4">Tgl Bayar</th>
-                    <th className="px-6 py-4">Total Biaya</th>
-                    <th className="px-6 py-4 text-right">Aksi</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Nomor SPPD</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Maksud Perjalanan</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Tgl Bayar</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Total Biaya</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0] text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-outline-variant/30 text-sm">
-                  {sppdList.filter(s => s.uangHarian && s.uangHarian > 0).map(item => (
-                    <tr key={item.id} className="hover:bg-surface-container-low transition-colors">
+                <tbody className="divide-y divide-[#E2E8F0] text-sm bg-white">
+                  {completedSPJ.map(item => (
+                    <tr key={item.id} className="hover:bg-[#1B4F8A]/5 transition-colors">
                       <td className="px-6 py-4 font-bold text-primary tnum">{item.number}</td>
                       <td className="px-6 py-4 text-on-surface font-medium truncate max-w-xs">{item.purpose}</td>
-                      <td className="px-6 py-4 text-on-surface-variant tnum">{item.tglBayar}</td>
+                      <td className="px-6 py-4 text-on-surface-variant tnum">{formatDateIndo(item.tglBayar)}</td>
                       <td className="px-6 py-4 font-bold text-on-surface tnum">Rp. {((item.uangHarian || 0) + (item.uangBBM || 0)).toLocaleString('id-ID')}</td>
                       <td className="px-6 py-4 text-right">
                          <div className="flex justify-end gap-2">
@@ -320,12 +351,15 @@ const SPJ: React.FC = () => {
 
                               gasService.generateDocument(item.id, 'SPJ', enriched)
                                 .then(url => {
-                                  window.open(url, '_blank');
                                   setPrinting(false);
+                                  const newWin = window.open(url, '_blank');
+                                  if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+                                    window.location.href = url;
+                                  }
                                 })
                                 .catch(err => {
                                   setPrinting(false);
-                                  alert("Gagal cetak PDF: " + err.message);
+                                  alert("Gagal cetak PDF: " + (err?.message || String(err)));
                                 });
                             }}
                             className="p-1.5 bg-surface border border-outline-variant rounded hover:bg-primary/5 text-primary transition-all"

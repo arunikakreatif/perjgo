@@ -7,6 +7,7 @@ import {
   Edit3, 
   ChevronLeft, 
   ChevronRight,
+  ChevronDown,
   Save,
   Wallet,
   ArrowRight,
@@ -19,7 +20,8 @@ import {
   CreditCard,
   CheckCircle2,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  ClipboardList
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { SPPD, Employee } from '../types';
@@ -29,6 +31,7 @@ import { generateNarrative } from '../services/aiService';
 const SPPDPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [sppdList, setSppdList] = useState<SPPD[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [config, setConfig] = useState<any>(null);
   const [showForm, setShowForm] = useState(false);
@@ -38,6 +41,21 @@ const SPPDPage: React.FC = () => {
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+
+  // Indonesian Date Formatter Helper
+  const formatDateIndo = (dateStr: string) => {
+    if (!dateStr) return "-";
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const y = parts[0];
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      return `${d} ${months[m] || ''} ${y}`;
+    }
+    return dateStr;
+  };
 
   // Form State
   const [formData, setFormData] = useState<Partial<SPPD>>({
@@ -145,11 +163,15 @@ const SPPDPage: React.FC = () => {
     gasService.generateDocument(id, type, enrichedData)
       .then(url => {
         setPrintingId(null);
-        window.open(url, '_blank');
+        const newWin = window.open(url, '_blank');
+        if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+          // Fallback: If blocked by popup blocker, redirect to open directly
+          window.location.href = url;
+        }
       })
       .catch(err => {
         setPrintingId(null);
-        alert(err.message);
+        alert(err?.message || String(err));
       });
   };
 
@@ -264,13 +286,7 @@ const SPPDPage: React.FC = () => {
               setUploading(false);
             })
             .catch(err => {
-              console.error("Upload failed", err);
-              const errMsg = String(err);
-              if (errMsg.includes("DriveApp") || errMsg.includes("Akses ditolak") || errMsg.includes("Authorization")) {
-                alert("🛑 ERROR IZIN (Google Drive)\n\nAplikasi tidak bisa menyimpan file karena belum mendapatkan izin.\n\n👉 LANGKAH PERBAIKAN:\n1. Buka Editor Apps Script.\n2. Pilih fungsi 'initApp' lalu klik 'Jalankan'.\n3. Klik 'Tinjau Izin' -> 'Advanced' -> 'Go to ... (unsafe)' -> 'Izinkan'.\n4. Deploy ulang sebagai 'NEW VERSION'.");
-              } else {
-                alert("Gagal upload foto: " + errMsg);
-              }
+              console.warn("Background upload failed, using local preview fallback", err);
               setUploading(false);
             });
         };
@@ -288,6 +304,17 @@ const SPPDPage: React.FC = () => {
       </div>
     );
   }
+
+  const filteredSppdList = [...sppdList].reverse().filter((item) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      (item.number || '').toLowerCase().includes(q) ||
+      (item.purpose || '').toLowerCase().includes(q) ||
+      (item.destination || '').toLowerCase().includes(q) ||
+      (item.employeeNames || []).some((name) => name.toLowerCase().includes(q))
+    );
+  });
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-2 duration-500 pb-20">
@@ -332,91 +359,129 @@ const SPPDPage: React.FC = () => {
               <div className="flex gap-2 w-full md:w-auto">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={16} />
-                  <input type="text" placeholder="Cari nomor atau tujuan..." className="w-full pl-10 pr-4 py-2 border border-outline-variant rounded-lg text-xs outline-none" />
+                  <input 
+                    type="text" 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Cari nomor atau tujuan..." 
+                    className="w-full pl-10 pr-4 py-2 border border-outline-variant rounded-lg text-xs outline-none" 
+                  />
                 </div>
               </div>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
-                <thead className="bg-surface-container-low text-on-surface-variant text-[10px] font-bold uppercase tracking-wider">
+                <thead className="bg-[#F4F6F9] text-[#718096] text-[11px] font-bold uppercase tracking-wide">
                   <tr>
-                    <th className="px-6 py-4 border-b border-outline-variant">No. SPPD</th>
-                    <th className="px-6 py-4 border-b border-outline-variant">Pegawai</th>
-                    <th className="px-6 py-4 border-b border-outline-variant">Kegiatan / Tujuan</th>
-                    <th className="px-6 py-4 border-b border-outline-variant">Waktu</th>
-                    <th className="px-6 py-4 border-b border-outline-variant text-right">Opsi Cetak</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">No. SPPD</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Pegawai</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Kegiatan / Tujuan</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Waktu</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0] text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-outline-variant/30 text-sm">
-                  {sppdList.map((item) => (
-                    <tr key={item.id} className="hover:bg-surface-container-low transition-colors group">
+                <tbody className="divide-y divide-[#E2E8F0] text-sm bg-white">
+                  {filteredSppdList.map((item) => (
+                    <tr key={item.id} className="hover:bg-[#1B4F8A]/5 transition-colors group">
                       <td className="px-6 py-4 font-bold text-primary tnum">{item.number}</td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-1">
                           {item.employeeNames?.map((name, i) => (
-                            <span key={i} className="text-xs font-medium text-on-surface bg-surface-container-high px-2 py-0.5 rounded-full w-fit">
+                            <span key={i} className="text-xs font-medium text-on-surface bg-slate-100 px-2.5 py-1 rounded-full w-fit">
                               {name}
                             </span>
                           ))}
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-bold text-on-surface">{item.purpose}</p>
-                        <p className="text-xs text-on-surface-variant mt-1">{item.destination}</p>
+                        <p className="font-semibold text-[#1A202C]">{item.purpose}</p>
+                        <p className="text-xs text-[#718096] mt-0.5">{item.destination}</p>
                       </td>
                       <td className="px-6 py-4 text-xs font-medium text-on-surface-variant tnum">
-                        {item.dateStart} s/d {item.dateEnd}
+                        {formatDateIndo(item.dateStart)} s/d {formatDateIndo(item.dateEnd)}
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={() => handleLaporanEdit(item)}
-                            className="p-2 bg-surface hover:bg-primary/10 hover:text-primary border border-outline-variant rounded-lg transition-all" 
-                            title="Buat Laporan"
-                          >
-                            <FileText size={16} />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setFormData(item);
-                              setShowForm(true);
-                              setShowLaporanForm(false);
+                      <td className="px-6 py-4 text-right overflow-visible">
+                        <div className="inline-block text-left relative m-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdown(activeDropdown === item.id ? null : item.id);
                             }}
-                            className="p-2 bg-surface hover:bg-secondary-container hover:text-secondary border border-outline-variant rounded-lg transition-all" 
-                            title="Edit Data SPPD"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2E86C1] hover:bg-[#1B4F8A] text-white text-xs font-bold rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer"
                           >
-                            <Edit3 size={16} />
+                            <span>Aksi</span>
+                            <ChevronDown size={14} className={cn("transition-transform", activeDropdown === item.id ? "rotate-180" : "")} />
                           </button>
-                          <button 
-                            disabled={printingId !== null}
-                            onClick={() => handlePrint(item.id, 'SPD')} 
-                            className="p-2 bg-surface hover:bg-primary hover:text-white border border-outline-variant rounded-lg transition-all disabled:opacity-50" 
-                            title="Cetak SPD"
-                          >
-                            {printingId === `${item.id}-SPD` ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
-                          </button>
-                          <button 
-                            disabled={printingId !== null}
-                            onClick={() => handlePrint(item.id, 'Laporan')} 
-                            className="p-2 bg-surface hover:bg-secondary hover:text-white border border-outline-variant rounded-lg transition-all disabled:opacity-50" 
-                            title="Cetak Laporan"
-                          >
-                            {printingId === `${item.id}-Laporan` ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
-                          </button>
-                          <button 
-                            disabled={printingId !== null}
-                            onClick={() => handlePrint(item.id, 'SPJ')} 
-                            className="p-2 bg-surface hover:bg-tertiary hover:text-white border border-outline-variant rounded-lg transition-all disabled:opacity-50" 
-                            title="Cetak SPJ"
-                          >
-                            {printingId === `${item.id}-SPJ` ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
-                          </button>
+                          
+                          {activeDropdown === item.id && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setActiveDropdown(null)}></div>
+                              <div className="absolute right-0 mt-2 w-48 bg-white border border-[#E2E8F0] rounded-xl shadow-lg py-1.5 z-50 animate-in fade-in slide-in-from-top-1 text-left">
+                                <button
+                                  onClick={() => {
+                                    setActiveDropdown(null);
+                                    handleLaporanEdit(item);
+                                  }}
+                                  className="w-full px-4 py-2 text-xs font-medium text-[#1A202C] hover:bg-[#1B4F8A]/5 flex items-center gap-2"
+                                >
+                                  <ClipboardList size={14} className="text-[#2E86C1]" />
+                                  <span>Isi/Edit Laporan</span>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setActiveDropdown(null);
+                                    setFormData(item);
+                                    setShowForm(true);
+                                    setShowLaporanForm(false);
+                                  }}
+                                  className="w-full px-4 py-2 text-xs font-medium text-[#1A202C] hover:bg-[#1B4F8A]/5 flex items-center gap-2"
+                                >
+                                  <Edit3 size={14} className="text-[#2E86C1]" />
+                                  <span>Edit Data SPPD</span>
+                                </button>
+                                <div className="border-t border-[#E2E8F0] my-1"></div>
+                                <button
+                                  disabled={printingId !== null}
+                                  onClick={() => {
+                                    setActiveDropdown(null);
+                                    handlePrint(item.id, 'SPD');
+                                  }}
+                                  className="w-full px-4 py-2 text-xs font-medium text-[#1A202C] hover:bg-[#1B4F8A]/5 flex items-center gap-2 disabled:opacity-50"
+                                >
+                                  {printingId === `${item.id}-SPD` ? <Loader2 size={14} className="animate-spin text-[#2E86C1]" /> : <Printer size={14} className="text-[#2E86C1]" />}
+                                  <span>Cetak SPD</span>
+                                </button>
+                                <button
+                                  disabled={printingId !== null}
+                                  onClick={() => {
+                                    setActiveDropdown(null);
+                                    handlePrint(item.id, 'Laporan');
+                                  }}
+                                  className="w-full px-4 py-2 text-xs font-medium text-[#1A202C] hover:bg-[#1B4F8A]/5 flex items-center gap-2 disabled:opacity-50"
+                                >
+                                  {printingId === `${item.id}-Laporan` ? <Loader2 size={14} className="animate-spin text-[#2E86C1]" /> : <FileText size={14} className="text-[#2E86C1]" />}
+                                  <span>Cetak Laporan</span>
+                                </button>
+                                <button
+                                  disabled={printingId !== null}
+                                  onClick={() => {
+                                    setActiveDropdown(null);
+                                    handlePrint(item.id, 'SPJ');
+                                  }}
+                                  className="w-full px-4 py-2 text-xs font-medium text-[#1A202C] hover:bg-[#1B4F8A]/5 flex items-center gap-2 disabled:opacity-50"
+                                >
+                                  {printingId === `${item.id}-SPJ` ? <Loader2 size={14} className="animate-spin text-[#2E86C1]" /> : <CreditCard size={14} className="text-[#2E86C1]" />}
+                                  <span>Cetak SPJ</span>
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
                   ))}
-                  {sppdList.length === 0 && (
+                  {filteredSppdList.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-6 py-12 text-center text-on-surface-variant font-medium">Belum ada data SPPD.</td>
                     </tr>

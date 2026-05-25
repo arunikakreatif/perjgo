@@ -29,22 +29,25 @@ import { gasService } from '../services/gasService';
 
 import { Page } from '../types';
 
-const StatCard = ({ title, value, subtitle, icon: Icon, progress, accent }: any) => (
-  <div className={cn(
-    "bg-white border p-6 rounded-xl flex flex-col justify-between hover:shadow-md transition-shadow group relative overflow-hidden",
-    accent ? "border-t-4 border-t-primary border-x-outline-variant border-b-outline-variant" : "border-outline-variant"
-  )}>
+const StatCard = ({ title, value, subtitle, icon: Icon, progress, accent, iconColor }: any) => (
+  <motion.div 
+    whileHover={{ y: -4 }}
+    className={cn(
+      "bg-white border border-[#E2E8F0] p-6 rounded-[12px] flex flex-col justify-between hover:shadow-md transition-all duration-300 group relative overflow-hidden",
+      accent ? "border-t-[4px] border-t-primary" : ""
+    )}
+  >
     <div className="flex justify-between items-start">
-      <div className="p-2.5 bg-surface-container-high rounded-lg text-primary group-hover:scale-110 transition-transform">
+      <div className={cn("p-2.5 rounded-lg group-hover:scale-110 transition-transform", iconColor || "bg-[#F4F6F9] text-primary")}>
         <Icon size={24} />
       </div>
-      <span className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">{title}</span>
+      <span className="text-[10px] font-semibold text-[#718096] uppercase tracking-[0.2em]">{title}</span>
     </div>
-    <div className="mt-6">
-      <h3 className="text-4xl font-bold text-on-surface tnum">{value}</h3>
-      <p className="text-xs text-on-surface-variant/60 font-bold uppercase tracking-wider mt-1">{subtitle}</p>
+    <div className="mt-6 font-sans">
+      <h3 className="text-4xl font-bold text-[#1A202C] tnum tracking-tight">{value}</h3>
+      <p className="text-xs text-[#718096] font-semibold uppercase tracking-wider mt-1">{subtitle}</p>
     </div>
-    <div className="mt-4 h-1 w-full bg-surface-container-low rounded-full overflow-hidden">
+    <div className="mt-4 h-1 w-full bg-[#F4F6F9] rounded-full overflow-hidden">
       <motion.div 
         initial={{ width: 0 }}
         animate={{ width: `${progress}%` }}
@@ -52,7 +55,7 @@ const StatCard = ({ title, value, subtitle, icon: Icon, progress, accent }: any)
         className="h-full bg-primary" 
       />
     </div>
-  </div>
+  </motion.div>
 );
 
 interface DashboardProps {
@@ -122,10 +125,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onPageChange }) => {
 
       {/* Stats Grid */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard title="Total Pegawai" value={stats?.pegawai || 0} subtitle="Pegawai Terdaftar" icon={BadgeCheck} progress={75} accent />
-        <StatCard title="Aktif Dinas" value={stats?.sppd || 0} subtitle="Sedang Berjalan" icon={FileText} progress={50} />
-        <StatCard title="Laporan Masuk" value={stats?.laporan || 0} subtitle="Dokumen Selesai" icon={ClipboardList} progress={65} />
-        <StatCard title="SPJ Belum" value={stats?.spj || 0} subtitle="Perlu Tindakan" icon={CreditCard} progress={85} />
+        <StatCard title="Total Pegawai" value={stats?.pegawai || 0} subtitle="Pegawai Terdaftar" icon={BadgeCheck} progress={75} accent iconColor="bg-blue-50 text-[#1B4F8A]" />
+        <StatCard title="Aktif Dinas" value={stats?.sppd || 0} subtitle="Sedang Berjalan" icon={FileText} progress={50} iconColor="bg-green-50 text-[#27AE60]" />
+        <StatCard title="Laporan Masuk" value={stats?.laporan || 0} subtitle="Dokumen Selesai" icon={ClipboardList} progress={65} iconColor="bg-cyan-50 text-[#2E86C1]" />
+        <StatCard title="SPJ Belum" value={stats?.spj || 0} subtitle="Perlu Tindakan" icon={CreditCard} progress={85} iconColor="bg-yellow-50 text-[#E67E22]" />
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">

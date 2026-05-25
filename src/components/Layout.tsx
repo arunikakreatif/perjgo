@@ -40,65 +40,83 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
     }
   }, []);
 
-  const menuItems = [
+  const navigasiUtama = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'pegawai', label: 'Pegawai', icon: Users },
     { id: 'sppd', label: 'SPPD', icon: FileText },
     { id: 'laporan', label: 'Laporan', icon: ClipboardList },
     { id: 'spj', label: 'SPJ', icon: CreditCard },
+  ] as const;
+
+  const pengaturanMenu = [
     { id: 'konfigurasi', label: 'Konfigurasi', icon: Settings },
     { id: 'about', label: 'About Us', icon: Info },
   ] as const;
 
+  const renderItem = (item: { readonly id: string; readonly label: string; readonly icon: any }) => (
+    <button
+      key={item.id}
+      id={`nav-${item.id}`}
+      onClick={() => onPageChange(item.id as Page)}
+      className={cn(
+        "w-full flex items-center gap-4 px-5 py-3 transition-all text-left font-semibold text-sm",
+        currentPage === item.id 
+          ? "bg-[#0F3460] text-white border-l-[3px] border-l-white rounded-none" 
+          : "text-[#B3C6E0] hover:text-white hover:bg-white/8 rounded-none"
+      )}
+    >
+      <item.icon size={18} />
+      <span>{item.label}</span>
+    </button>
+  );
+
   return (
-    <aside id="sidebar" className="fixed left-0 top-0 h-full w-64 bg-secondary flex flex-col py-8 z-50 border-r border-white/5">
-      <div className="px-6 mb-8 flex items-center gap-3">
+    <aside id="sidebar" className="fixed left-0 top-0 h-full w-64 bg-[#1B4F8A] flex flex-col z-50 border-r border-[#E2E8F0]/10">
+      <div className="bg-[#0F3460] px-5 py-4 flex items-center gap-3 mb-6">
         <img 
           src="https://res.cloudinary.com/maswardi/image/upload/v1778757806/go_gsqgd7.png" 
           alt="Logo" 
-          className="h-12 w-12 object-contain"
+          className="h-10 w-10 object-contain"
           referrerPolicy="no-referrer"
         />
-        <div>
-          <h1 className="text-xl font-bold text-white">{villageName}</h1>
-          <p className="text-[10px] text-white/50 uppercase tracking-widest font-black">GOdigital</p>
+        <div className="min-w-0">
+          <h1 className="text-base font-bold text-white truncate">{villageName}</h1>
+          <p className="text-[10px] text-[#B3C6E0] uppercase tracking-widest font-black">GOdigital</p>
         </div>
       </div>
 
-      <nav className="flex-1 px-3 space-y-1">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            id={`nav-${item.id}`}
-            onClick={() => onPageChange(item.id as Page)}
-            className={cn(
-              "w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-left",
-              currentPage === item.id 
-                ? "bg-primary text-white shadow-lg shadow-black/20" 
-                : "text-white/60 hover:text-white hover:bg-white/5"
-            )}
-          >
-            <item.icon size={20} />
-            <span className="text-sm font-semibold tracking-wide">{item.label}</span>
-          </button>
-        ))}
-
-        <div className="mt-8 pt-8 border-t border-white/5">
+      <nav className="flex-1 space-y-0.5">
+        <div className="space-y-0.5">
+          {navigasiUtama.map(renderItem)}
+        </div>
+        
+        <div className="border-t border-white/12 my-4 mx-3"></div>
+        
+        <div className="space-y-0.5">
+          {pengaturanMenu.map(renderItem)}
         </div>
       </nav>
 
-      <div className="px-4 mt-auto">
-        <button id="sidebar-help" className="w-full flex items-center gap-4 px-4 py-2.5 text-white/50 hover:text-white transition-all text-left">
-          <HelpCircle size={20} />
-          <span className="text-sm font-semibold">Bantuan</span>
-        </button>
+      <div className="border-t border-white/12 my-4 mx-3"></div>
+
+      <div className="px-4 mt-auto pb-6">
+        <a 
+          id="sidebar-help" 
+          href="https://wa.me/6285150617732"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full flex items-center gap-4 px-4 py-2.5 text-[#B3C6E0] hover:text-white transition-all text-left text-sm font-semibold cursor-pointer"
+        >
+          <HelpCircle size={18} />
+          <span>Bantuan</span>
+        </a>
         <button 
           id="sidebar-logout" 
           onClick={logout}
-          className="w-full flex items-center gap-4 px-4 py-2.5 text-white/50 hover:text-white transition-all text-left"
+          className="w-full flex items-center gap-4 px-4 py-2.5 text-[#B3C6E0] hover:text-white transition-all text-left text-sm font-semibold"
         >
-          <LogOut size={20} />
-          <span className="text-sm font-semibold">Keluar</span>
+          <LogOut size={18} />
+          <span>Keluar</span>
         </button>
       </div>
     </aside>
@@ -111,9 +129,9 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ title }) => {
   return (
-    <header id="top-header" className="sticky top-0 z-40 flex justify-between items-center w-full px-8 py-4 bg-surface border-b border-outline-variant shadow-sm backdrop-blur-sm bg-surface/80">
+    <header id="top-header" className="sticky top-0 z-40 flex justify-between items-center w-full px-8 py-4 bg-white border-b border-[#E2E8F0] shadow-sm">
       <div className="flex items-center gap-6">
-        <h2 className="text-xl font-bold text-primary hidden md:block">{title}</h2>
+        <h2 className="text-[18px] font-semibold text-[#1A202C] hidden md:block">{title}</h2>
         
         <div className="relative hidden lg:block ml-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={16} />

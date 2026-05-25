@@ -295,64 +295,6 @@ const Konfigurasi: React.FC = () => {
           </div>
         </div>
 
-        {/* Koneksi & Izin */}
-        <div className="md:col-span-12 bg-white p-8 rounded-xl border border-red-100 bg-red-50/10 space-y-6">
-          <div className="flex items-center gap-3 border-b border-red-100 pb-4">
-            <ShieldCheck size={24} className="text-red-600" />
-            <h4 className="text-lg font-bold text-red-600">Koneksi & Izin Sistem (PENTING)</h4>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-            <div>
-              <p className="text-sm text-on-surface-variant leading-relaxed">
-                Jika Anda mengalami error <strong>"Akses Ditolak: DriveApp"</strong>, itu berarti Google belum mengizinkan aplikasi untuk menyimpan file.
-              </p>
-              <ul className="mt-3 space-y-1 text-xs text-on-surface-variant list-disc list-inside opacity-80">
-                <li>Klik tombol di samping untuk memicu jendela izin Google.</li>
-                <li>Pilih <strong>Advanced / Lanjutan</strong> di pojok kiri bawah.</li>
-                <li>Klik <strong>Go to perjadinGO (unsafe)</strong>.</li>
-                <li>Klik <strong>Izinkan / Allow</strong>.</li>
-              </ul>
-              <div className="mt-4 p-3 bg-white/50 rounded-lg border border-red-200">
-                <p className="text-[11px] font-bold text-red-700 uppercase mb-1">Masih Error?</p>
-                <p className="text-[11px] text-red-600 leading-tight">
-                  Jika sudah klik Izinkan tapi tetap error, kemungkinan Anda login dengan <strong>beberapa akun Google</strong> di browser ini.
-                </p>
-                <div className="mt-2 text-[11px] font-semibold text-red-800">
-                  SOLUSI: Buka aplikasi ini di jendela <strong>Incognito / Penyamaran</strong> (Ctrl+Shift+N) dan login kembali.
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col gap-3">
-              <button 
-                type="button"
-                onClick={() => {
-                  if(confirm("Jalankan deteksi izin? Anda akan dialihkan jika Google meminta otorisasi.")) {
-                    setSaving(true);
-                    // Kami panggil fungsi khusus yang memicu DriveApp
-                    // @ts-ignore
-                    const action = "debugPermissions";
-                    // @ts-ignore
-                    gasService[action]().then((msg: string) => {
-                       setSaving(false);
-                       alert(msg);
-                    }).catch((err: any) => {
-                       setSaving(false);
-                       alert(err);
-                    });
-                  }
-                }}
-                className="w-full bg-white border-2 border-red-500 text-red-600 hover:bg-red-50 font-bold py-3 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
-              >
-                <ShieldCheck size={20} />
-                Trigger / Update Izin Google Drive
-              </button>
-              <p className="text-[10px] text-center text-red-500 font-medium">
-                * Gunakan tombol ini setelah Anda melakukan "Deploy &rarr; New Version" di Editor Google.
-              </p>
-            </div>
-          </div>
-        </div>
-
         <div className="md:col-span-12 flex justify-end pb-12">
           <button 
             disabled={saving}

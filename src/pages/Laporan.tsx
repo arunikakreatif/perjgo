@@ -59,8 +59,21 @@ const Laporan: React.FC = () => {
     fetchData();
   }, []);
 
-  const needsReport = sppdList.filter(s => !s.laporan1);
-  const completedReports = sppdList.filter(s => s.laporan1);
+  const formatDateIndo = (dateStr: string) => {
+    if (!dateStr) return "-";
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const y = parts[0];
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      return `${d} ${months[m] || ''} ${y}`;
+    }
+    return dateStr;
+  };
+
+  const needsReport = [...sppdList].reverse().filter(s => !s.laporan1);
+  const completedReports = [...sppdList].reverse().filter(s => s.laporan1);
 
   const handleOpenReport = (item: SPPD) => {
     setSelectedSPPD({...item});
@@ -146,8 +159,11 @@ const Laporan: React.FC = () => {
         setPrinting(true);
         gasService.generateDocument(enrichedData.id, 'Laporan', enrichedData)
           .then(url => {
-            window.open(url, '_blank');
             setPrinting(false);
+            const newWin = window.open(url, '_blank');
+            if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+              window.location.href = url;
+            }
             setTimeout(() => {
               setSelectedSPPD(null);
             }, 2000);
@@ -155,7 +171,7 @@ const Laporan: React.FC = () => {
           .catch(err => {
             setPrinting(false);
             console.error("Print failed", err);
-            alert("Gagal cetak PDF: " + err.message);
+            alert("Gagal cetak PDF: " + (err?.message || String(err)));
           });
       })
       .catch(err => {
@@ -383,30 +399,44 @@ const Laporan: React.FC = () => {
           <h3 className="font-bold uppercase tracking-widest text-xs">Perlu Pengisian Laporan ({needsReport.length})</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {needsReport.map(item => (
-            <div key={item.id} className="bg-white border border-outline-variant rounded-xl p-5 shadow-sm hover:shadow-md transition-all group">
-              <p className="text-[10px] font-bold text-on-surface-variant uppercase mb-2 tnum">{item.number}</p>
-              <h4 className="font-bold text-on-surface mb-1 line-clamp-1">{item.purpose}</h4>
-              <p className="text-xs text-on-surface-variant mb-4">{item.destination}</p>
-              
-              <div className="flex items-center justify-between pt-4 border-t border-outline-variant/30">
-                <span className="text-[10px] font-medium text-on-surface-variant tnum">{item.dateStart}</span>
-                <button 
-                  onClick={() => handleOpenReport(item)}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 transition-colors"
-                >
-                  Isi Laporan
-                  <ArrowRight size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
-          {needsReport.length === 0 && (
-            <div className="col-span-full bg-surface-container-low/30 border border-dashed border-outline-variant rounded-xl p-8 text-center">
-              <p className="text-sm font-medium text-on-surface-variant">Hore! Semua perjalanan dinas telah dilaporkan.</p>
-            </div>
-          )}
+        <div className="bg-white border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+           <div className="overflow-x-auto">
+             <table className="w-full text-left border-collapse">
+                <thead className="bg-[#F4F6F9] text-[#718096] text-[11px] font-bold uppercase tracking-wide">
+                  <tr>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Nomor SPPD</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Maksud Perjalanan</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Waktu</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0] text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E2E8F0] text-sm bg-white">
+                  {needsReport.map(item => (
+                    <tr key={item.id} className="hover:bg-[#1B4F8A]/5 transition-colors">
+                      <td className="px-6 py-4 font-bold text-primary tnum">{item.number}</td>
+                      <td className="px-6 py-4 text-on-surface font-medium truncate max-w-xs">{item.purpose}</td>
+                      <td className="px-6 py-4 text-on-surface-variant tnum">{formatDateIndo(item.dateStart)}</td>
+                      <td className="px-6 py-4 text-right">
+                         <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => handleOpenReport(item)}
+                              className="px-3 py-1.5 bg-[#2E86C1] hover:bg-[#1B4F8A] text-white text-xs font-bold rounded-lg shadow-sm transition-all active:scale-95 inline-flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <span>Isi Laporan</span>
+                              <ArrowRight size={14} />
+                            </button>
+                         </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {needsReport.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-on-surface-variant font-medium">Hore! Semua perjalanan dinas telah dilaporkan.</td>
+                    </tr>
+                  )}
+                </tbody>
+             </table>
+           </div>
         </div>
       </div>
 
@@ -419,20 +449,20 @@ const Laporan: React.FC = () => {
         <div className="bg-white border border-outline-variant rounded-xl shadow-sm overflow-hidden">
            <div className="overflow-x-auto">
              <table className="w-full text-left border-collapse">
-                <thead className="bg-surface-container-low text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                <thead className="bg-[#F4F6F9] text-[#718096] text-[11px] font-bold uppercase tracking-wide">
                   <tr>
-                    <th className="px-6 py-4">Nomor SPPD</th>
-                    <th className="px-6 py-4">Maksud Perjalanan</th>
-                    <th className="px-6 py-4">Waktu</th>
-                    <th className="px-6 py-4 text-right">Aksi</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Nomor SPPD</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Maksud Perjalanan</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0]">Waktu</th>
+                    <th className="px-6 py-4 border-b border-[#E2E8F0] text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-outline-variant/30 text-sm">
+                <tbody className="divide-y divide-[#E2E8F0] text-sm bg-white">
                   {completedReports.map(item => (
-                    <tr key={item.id} className="hover:bg-surface-container-low transition-colors">
+                    <tr key={item.id} className="hover:bg-[#1B4F8A]/5 transition-colors">
                       <td className="px-6 py-4 font-bold text-primary tnum">{item.number}</td>
                       <td className="px-6 py-4 text-on-surface font-medium truncate max-w-xs">{item.purpose}</td>
-                      <td className="px-6 py-4 text-on-surface-variant tnum">{item.dateStart}</td>
+                      <td className="px-6 py-4 text-on-surface-variant tnum">{formatDateIndo(item.dateStart)}</td>
                       <td className="px-6 py-4 text-right">
                          <div className="flex justify-end gap-2">
                            <button 
@@ -448,12 +478,15 @@ const Laporan: React.FC = () => {
                               };
                               gasService.generateDocument(item.id, 'Laporan', enriched)
                                 .then(url => {
-                                  window.open(url, '_blank');
                                   setPrinting(false);
+                                  const newWin = window.open(url, '_blank');
+                                  if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+                                    window.location.href = url;
+                                  }
                                 })
                                 .catch(err => {
                                   setPrinting(false);
-                                  alert("Gagal cetak PDF: " + err.message);
+                                  alert("Gagal cetak PDF: " + (err?.message || String(err)));
                                 });
                             }}
                             className="p-1.5 bg-surface border border-outline-variant rounded hover:bg-primary/5 text-primary transition-all font-bold flex items-center gap-1 px-3"
@@ -486,22 +519,21 @@ const Laporan: React.FC = () => {
           <History size={20} />
           <h3 className="font-bold uppercase tracking-widest text-xs">Arsip & Log Dokumen</h3>
         </div>
-        
-        <div className="bg-white border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+               <div className="bg-white border border-outline-variant rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
-              <thead className="bg-surface-container-low text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+              <thead className="bg-[#F4F6F9] text-[#718096] text-[11px] font-bold uppercase tracking-wide">
                 <tr>
-                  <th className="px-6 py-4">Waktu Generate</th>
-                  <th className="px-6 py-4">Nomor SPPD</th>
-                  <th className="px-6 py-4">Jenis</th>
-                  <th className="px-6 py-4">Nama File</th>
-                  <th className="px-6 py-4 text-right">Aksi</th>
+                  <th className="px-6 py-4 border-b border-[#E2E8F0]">Waktu Generate</th>
+                  <th className="px-6 py-4 border-b border-[#E2E8F0]">Nomor SPPD</th>
+                  <th className="px-6 py-4 border-b border-[#E2E8F0]">Jenis</th>
+                  <th className="px-6 py-4 border-b border-[#E2E8F0]">Nama File</th>
+                  <th className="px-6 py-4 border-b border-[#E2E8F0] text-right">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant/30 text-sm">
+              <tbody className="divide-y divide-[#E2E8F0] text-sm bg-white">
                 {arsip.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-surface-container-low transition-colors">
+                  <tr key={idx} className="hover:bg-[#1B4F8A]/5 transition-colors">
                     <td className="px-6 py-4 text-on-surface-variant tnum flex items-center gap-2">
                       <Calendar size={14} />
                       {item.date_generated}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { CheckCircle2, Rocket, Shield, Zap, Heart } from 'lucide-react';
+import { CheckCircle2, Rocket, Shield, Zap, Heart, Mail, Globe, Phone } from 'lucide-react';
 
 const About: React.FC = () => {
   return (
@@ -96,6 +96,37 @@ const About: React.FC = () => {
                  <CheckCircle2 size={16} className="text-success" />
                  Digital Transformation
                </div>
+            </div>
+
+            <div className="pt-6 border-t border-outline-variant/60 space-y-3">
+              <h5 className="text-xs font-black text-on-surface-variant uppercase tracking-[0.15em]">Kontak Pengembang</h5>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm font-medium">
+                <a 
+                  href="mailto:arunikakreatif@gmail.com" 
+                  className="flex items-center gap-2.5 text-on-surface-variant hover:text-primary transition-colors py-2 px-3 hover:bg-primary/5 rounded-xl border border-transparent hover:border-outline-variant"
+                >
+                  <Mail size={16} className="text-primary shrink-0" />
+                  <span className="truncate">arunikakreatif@gmail.com</span>
+                </a>
+                <a 
+                  href="https://www.arunikakreatifmedia.my.id" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 text-on-surface-variant hover:text-primary transition-colors py-2 px-3 hover:bg-primary/5 rounded-xl border border-transparent hover:border-outline-variant"
+                >
+                  <Globe size={16} className="text-primary shrink-0" />
+                  <span className="truncate">www.arunikakreatifmedia.my.id</span>
+                </a>
+                <a 
+                  href="https://wa.me/6285150617732" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 text-on-surface-variant hover:text-primary transition-colors py-2 px-3 hover:bg-primary/5 rounded-xl border border-transparent hover:border-outline-variant"
+                >
+                  <Phone size={16} className="text-primary shrink-0" />
+                  <span className="truncate">0851-5061-7732</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>

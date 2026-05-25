@@ -5,7 +5,7 @@ import { Employee, SPPD } from '../types';
  * As requested, uses google.script.run for all backend calls.
  */
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzMHK1xPfmRzFaQsGRQVRbAyK-gGq_o9Oc0UU0Dy0ygkXcTiKSLpsvlDNf9FBc7izpucw/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbz05_k6u7Gs_XFKEwGnHXQNbCINj1OaB1hXxj3pCf69ewgcvcYoYH_u5KhcC3Q6DXVMgQ/exec';
 
 export interface TenantInfo {
   villageName: string;
@@ -68,28 +68,33 @@ const runGas = <T>(functionName: string, ...args: any[]): Promise<T> => {
             console.error("GAS Script Error:", data.error);
             const errMsg = String(data.error);
             if (errMsg.includes("DriveApp") || errMsg.includes("Akses ditolak") || errMsg.includes("Permission denied")) {
-              reject(`🛑 ERROR IZIN (Google Drive)
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('gas-drive-permission-error'));
+              }
+              reject(new Error(`🛑 ERROR IZIN (Google Drive)
 --------------------------------------
-Aplikasi tidak bisa menyimpan file karena belum mendapatkan izin.
+Aplikasi tidak bisa menyimpan file karena belum mendapatkan izin Google Drive.
 
 👉 LANGKAH PERBAIKAN:
 1. Buka Editor Apps Script (Tempat Anda copy-paste script).
-2. Di baris atas, pastikan yang terpilih adalah fungsi 'initApp'.
+2. Di baris atas, pastikan yang terpilih adalah fungsi 'mintaIzinGoogleDrive'.
 3. Klik tombol 'Jalankan' (Run) di sebelah kiri dropdown.
 4. Klik 'Tinjau Izin' -> Pilih Akun Anda.
 5. PENTING: Klik 'Advanced' / 'Lanjutan' (di kiri bawah jendela pop-up).
 6. Klik 'Go to perjadinGO (unsafe)' / 'Buka perjadinGO (tidak aman)'.
 7. Klik 'Izinkan' / 'Allow'.
 
-⚠️ LANGKAH TERAKHIR (WAJIB):
+⚠️ LANGKAH TERAKHIR (WAJIB DEPLOY ULANG):
 1. Klik tombol 'Deploy' -> 'Manage Deployments'.
-2. Klik ikon Pensil (Edit) pada deployment aktif.
-3. Di kolom Version, ganti menjadi 'NEW VERSION' (Sangat Penting!).
-4. Klik 'Deploy'.`);
+2. Klik ikon Pensil (Edit) pada deployment aktif Anda.
+3. Di kolom 'Version', ganti menjadi 'NEW VERSION' (Sangat Penting!).
+4. Pastikan 'Execute as' (Jalankan sebagai) diatur ke 'Me' (Saya).
+5. Pastikan 'Who has access' (Yang memiliki akses) diatur ke 'Anyone' (Siapa saja).
+6. Klik 'Deploy'.`));
             } else if (errMsg.includes("Indeks anakan") || errMsg.includes("Child index")) {
-              reject("⚠️ ERROR FORMAT: Template Google Doc Anda memiliki paragraf kosong atau tabel yang strukturnya tidak didukung. Coba hapus baris kosong di bagian bawah template.");
+              reject(new Error("⚠️ ERROR FORMAT: Template Google Doc Anda memiliki paragraf kosong atau tabel yang strukturnya tidak didukung. Coba hapus baris kosong di bagian bawah template."));
             } else {
-              reject(data.error);
+              reject(new Error(errMsg));
             }
           } else {
             console.log(`GAS Success [${functionName}]:`, data);
@@ -177,6 +182,8 @@ const mockFallback = (name: string, args: any[], resolve: any, reject: any) => {
           email: 'desa.mandiri@digital.go.id',
           web: 'www.desamandiri.id',
           kodepos: '63362',
+          logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Lambang_Kabupaten_Magetan.png/150px-Lambang_Kabupaten_Magetan.png',
+          logo_desa_url: '',
           folder_pdf_id: '',
           templates: [
             { type: 'SPD', count: 1, templateId: '' },
@@ -295,7 +302,6 @@ export const gasService = {
     return runGas<any>('uploadFile', base64, fileName, tenant?.folderId || '');
   },
   initApp: () => runGas<string>('initApp'),
-  debugPermissions: () => runGas<string>('debugPermissions'),
   loginByCode: (code: string) => runGas<any>('loginByCode', code),
   isLoggedIn: () => !!getStoredTenant(),
   getTenant: () => getStoredTenant(),

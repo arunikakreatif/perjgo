@@ -2,32 +2,36 @@
  * perjadinGO - Backend Google Apps Script (Multi-Tenant Version)
  * 
  * PENTING: Jika muncul "Akses Ditolak: DriveApp", Anda HARUS menjalankan 
- * fungsi 'initApp' secara manual di Editor Script (klik Run/Jalankan) 
+ * fungsi 'mintaIzinGoogleDrive' secara manual di Editor Script (klik Run/Jalankan) 
  * untuk memberikan izin akses ke Drive/Docs.
- * 
- * Scope Hint (Agar Otorisasi Terdeteksi):
- * DriveApp.getRootFolder();
- * DocumentApp.create("temp");
- * SpreadsheetApp.getActiveSpreadsheet();
- * 
- * --- REKOMENDASI: Isi file appsscript.json Anda dengan ini ---
- * {
- *   "timeZone": "Asia/Jakarta",
- *   "dependencies": {},
- *   "exceptionLogging": "STACKDRIVER",
- *   "runtimeVersion": "V8",
- *   "webapp": {
- *     "executeAs": "USER_ACCESSING",
- *     "access": "MYSELF"
- *   },
- *   "oauthScopes": [
- *     "https://www.googleapis.com/auth/drive",
- *     "https://www.googleapis.com/auth/documents",
- *     "https://www.googleapis.com/auth/spreadsheets",
- *     "https://www.googleapis.com/auth/script.external_request"
- *   ]
- * }
  */
+
+/**
+ * FUNGSI KHUSUS UNTUK MEMAKSA MUNCUL POPUP "Otorisasi Diperlukan" (Authorization Required)
+ * 1. Di Editor Google Apps Script Anda, pilih fungsi 'mintaIzinGoogleDrive' di dropdown atas.
+ * 2. Klik tombol 'Jalankan' / 'Run' (ikon Segitiga Play).
+ * 3. Jendela popup "Otorisasi Diperlukan" (Authorization Required) akan segera muncul secara otomatis!
+ * 4. Klik 'Tinjau Izin' (Review Permissions).
+ * 5. Pilih akun Google Anda.
+ * 6. Klik 'Advanced' / 'Lanjutan' di pojok kiri bawah.
+ * 7. Klik 'Buka perjadinGO (tidak aman)' atau 'Go to perjadinGO (unsafe)'.
+ * 8. Klik 'Izinkan' (Allow).
+ * 9. Selesai! Sekarang ulangi lagi upload atau cetak di aplikasi perjadinGO Anda.
+ */
+function mintaIzinGoogleDrive() {
+  Logger.log("Mengecek dan memicu otorisasi Google Drive...");
+  const folderUtama = DriveApp.getRootFolder();
+  Logger.log("Folder Utama Anda berhasil diakses: " + folderUtama.getName());
+  
+  Logger.log("Mengecek dan memicu otorisasi Google Docs...");
+  const dokumenBaru = DocumentApp.create("Inisialisasi_Otorisasi_perjadinGO");
+  dokumenBaru.getBody().appendParagraph("Otorisasi sukses!");
+  dokumenBaru.saveAndClose();
+  
+  // Hapus dokumen percobaan agar tidak mengotori Drive
+  DriveApp.getFileById(dokumenBaru.getId()).setTrashed(true);
+  Logger.log("✓ SEMUA IZIN SELESAI DAN BERHASIL DITERIMA!");
+}
 
 // GANTI INI dengan ID Spreadsheet "Master" Anda
 const MASTER_SS_ID = "1DFUAr4cYppP9nxaB2pgP8n5Oug-O1pvEdrhptlGqwJA"; // Sementara pakai ini, harap buat Master Sheet baru
@@ -251,42 +255,18 @@ function initApp() {
  */
 function debugPermissions() {
   console.log("Mengecek akses DriveApp...");
-  try {
-    const root = DriveApp.getRootFolder();
-    console.log("Root Folder Name: " + root.getName());
-    const dummy = DriveApp.createFile("PERM_TEST", "ok");
-    dummy.setTrashed(true);
-  } catch(e) {
-    throw new Error("Gagal akses DriveApp: " + e.message + ". Silakan klik 'Advanced' -> 'Go to...' saat muncul jendela izin.");
-  }
+  const folderId = DriveApp.getRootFolder().getId();
+  console.log("Root Folder ID: " + folderId);
   
   console.log("Mengecek akses DocumentApp...");
-  try {
-    const doc = DocumentApp.create("TEST_PERMISSIONS");
-    doc.getBody().appendParagraph("ok");
-    doc.saveAndClose();
-    DriveApp.getFileById(doc.getId()).setTrashed(true);
-  } catch(e) {
-     throw new Error("Gagal akses DocumentApp: " + e.message);
-  }
+  const docId = DocumentApp.create("TEST_PERMISSIONS").getId();
+  DriveApp.getFileById(docId).setTrashed(true);
   
   console.log("Mengecek akses SpreadsheetApp...");
-  try {
-    const ssName = SpreadsheetApp.getActiveSpreadsheet().getName();
-    console.log("Spreadsheet Name: " + ssName);
-  } catch(e) {
-    console.warn("Script tidak terikat spreadsheet, menggunakan ID Master.");
-  }
-
-  console.log("Mengecek akses Master Sheet...");
-  try {
-    const masterSS = SpreadsheetApp.openById(MASTER_SS_ID);
-    console.log("Master SS Name: " + masterSS.getName());
-  } catch(e) {
-    throw new Error("Gagal Akses Master Sheet: " + e.message + ". Pastikan ID MASTER_SS_ID benar dan Anda memiliki akses Editor ke file tersebut.");
-  }
+  const ssName = SpreadsheetApp.getActiveSpreadsheet().getName();
+  console.log("Spreadsheet Name: " + ssName);
   
-  return "✅ SEMUA IZIN BERHASIL! Silakan Deploy -> New Version untuk memperbarui aplikasi.";
+  return "Semua izin (Drive, Docs, Sheet) BERHASIL diberikan!";
 }
 
 /**
@@ -519,6 +499,11 @@ function generateDocument(sppdId, docType, extraData) {
      }
   }
 
+  // Normalize SPD to SPPD to trigger direct HTML-to-PDF generation
+  if (docType === "SPD") {
+    docType = "SPPD";
+  }
+
   // Ensure we have a valid peopleCount for template matching
   let pCount = "1";
   if (sppd.peopleCount) {
@@ -526,29 +511,6 @@ function generateDocument(sppdId, docType, extraData) {
     if (!isNaN(pc)) pCount = String(pc);
   }
 
-  // Logika Pemilihan Template: Prioritas Master -> Lokal Desa
-  const globalTemplates = getGlobalTemplates();
-  const localTemplates = config.templates || [];
-  
-  let template = globalTemplates.find(t => t.type === docType && String(t.count) === pCount);
-  
-  // Jika di Master tidak ada, baru cari di Spreadsheet Desa masing-masing
-  if (!template || !template.templateId || String(template.templateId).trim() === "") {
-    template = localTemplates.find(t => t.type === docType && String(t.count) === pCount);
-  }
-  
-  if (!template || !template.templateId || String(template.templateId).trim() === "") {
-    throw new Error(`Template ${docType} untuk ${pCount} orang belum diatur di Master maupun di Desa.`);
-  }
-  
-  const templateId = template.templateId;
-  let templateDoc;
-  try {
-    templateDoc = DriveApp.getFileById(templateId);
-  } catch (e) {
-    throw new Error(`Gagal membuka Template ID: ${templateId}. Pastikan ID benar dan script memiliki izin Drive.`);
-  }
-  
   const timestamp = Utilities.formatDate(new Date(), "GMT+7", "yyyy-MM-dd HH:mm:ss");
   const fileName = `${docType}_${String(sppd.number || '').replace(/\//g, '_')}_${pCount}org`;
   
@@ -573,7 +535,7 @@ function generateDocument(sppdId, docType, extraData) {
     updateConfigValue("folder_pdf_id", pdfFolder.getId());
   }
 
-  // JIKA Tipe dok adalah "Laporan", gunakan generator HTML yang sangat ketat sesuai permintaan user
+  // 1. HTML-to-PDF GENERATION FOR CORE TYPES
   if (docType === "Laporan") {
     try {
       const pdfBlob = generateHtmlToPdfLaporan(sppd, config);
@@ -596,8 +558,80 @@ function generateDocument(sppdId, docType, extraData) {
       return fileUrl;
     } catch (e) {
       console.error("HTML Laporan Error: " + e.message);
-      // Fallback to old Google Doc flow if HTML generation fails
     }
+  }
+
+  if (docType === "SPPD") {
+    try {
+      const pdfBlob = generateHtmlToPdfSPPD(sppd, config);
+      const pdfFile = pdfFolder.createFile(pdfBlob.setName(fileName + ".pdf"));
+      pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      
+      const fileUrl = `https://drive.google.com/file/d/${pdfFile.getId()}/view?usp=sharing`;
+      
+      // CATAT KE SHEET ARSIP
+      const arsipSheet = getSS().getSheetByName("Arsip_Dokumen");
+      arsipSheet.appendRow([
+        Utilities.getUuid(),
+        sppd.number,
+        docType,
+        fileName + ".pdf",
+        timestamp,
+        fileUrl
+      ]);
+      
+      return fileUrl;
+    } catch (e) {
+      console.error("HTML SPPD Error: " + e.message);
+    }
+  }
+
+  if (docType === "SPJ") {
+    try {
+      const pdfBlob = generateHtmlToPdfSPJ(sppd, config);
+      const pdfFile = pdfFolder.createFile(pdfBlob.setName(fileName + ".pdf"));
+      pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      
+      const fileUrl = `https://drive.google.com/file/d/${pdfFile.getId()}/view?usp=sharing`;
+      
+      // CATAT KE SHEET ARSIP
+      const arsipSheet = getSS().getSheetByName("Arsip_Dokumen");
+      arsipSheet.appendRow([
+        Utilities.getUuid(),
+        sppd.number,
+        docType,
+        fileName + ".pdf",
+        timestamp,
+        fileUrl
+      ]);
+      
+      return fileUrl;
+    } catch (e) {
+      console.error("HTML SPJ Error: " + e.message);
+    }
+  }
+
+  // FALLBACK TO GOOGLE DOC TEMPLATES
+  const globalTemplates = getGlobalTemplates();
+  const localTemplates = config.templates || [];
+  
+  let template = globalTemplates.find(t => t.type === docType && String(t.count) === pCount);
+  
+  // Jika di Master tidak ada, baru cari di Spreadsheet Desa masing-masing
+  if (!template || !template.templateId || String(template.templateId).trim() === "") {
+    template = localTemplates.find(t => t.type === docType && String(t.count) === pCount);
+  }
+  
+  if (!template || !template.templateId || String(template.templateId).trim() === "") {
+    throw new Error(`Template ${docType} untuk ${pCount} orang belum diatur di Master maupun di Desa.`);
+  }
+  
+  const templateId = template.templateId;
+  let templateDoc;
+  try {
+    templateDoc = DriveApp.getFileById(templateId);
+  } catch (e) {
+    throw new Error(`Gagal membuka Template ID: ${templateId}. Pastikan ID benar dan script memiliki izin Drive.`);
   }
 
   // Salin template ke file baru (Temporary Google Doc)
@@ -805,6 +839,30 @@ function generateDocument(sppdId, docType, extraData) {
     // 5. Final Expert cleanup: Remove any remaining double-brace placeholders that weren't replaced
     try {
       element.replaceText("\\{\\{[^\\}]+\\}\\}", "");
+    } catch(e) {}
+
+    // 6. Meticulous letterhead duplication and capitalization cleanup (e.g. "DESA Desa", "KECAMATAN Kecamatan")
+    try {
+      element.replaceText("DESA Desa ", "DESA ");
+      element.replaceText("DESA Desa", "DESA");
+      element.replaceText("desa Desa ", "desa ");
+      element.replaceText("desa Desa", "desa");
+      element.replaceText("DESA DESA ", "DESA ");
+      element.replaceText("DESA DESA", "DESA");
+      element.replaceText("Desa Desa ", "Desa ");
+      element.replaceText("Desa Desa", "Desa");
+      element.replaceText("KECAMATAN Kecamatan ", "KECAMATAN ");
+      element.replaceText("KECAMATAN Kecamatan", "KECAMATAN");
+      element.replaceText("KECAMATAN KECAMATAN ", "KECAMATAN ");
+      element.replaceText("KECAMATAN KECAMATAN", "KECAMATAN");
+      element.replaceText("KABUPATEN Kabupaten ", "KABUPATEN ");
+      element.replaceText("KABUPATEN Kabupaten", "KABUPATEN");
+      element.replaceText("KABUPATEN KABUPATEN ", "KABUPATEN ");
+      element.replaceText("KABUPATEN KABUPATEN", "KABUPATEN");
+      element.replaceText("KEPALA DESA Desa ", "KEPALA DESA ");
+      element.replaceText("KEPALA DESA Desa", "KEPALA DESA");
+      element.replaceText("Kepala Desa Desa ", "Kepala Desa ");
+      element.replaceText("Kepala Desa Desa", "Kepala Desa");
     } catch(e) {}
   };
 
@@ -1060,6 +1118,15 @@ function generateHtmlToPdfLaporan(sppd, config) {
   const logoUrlInput = config.logo_url || defaultLogo;
   const logoUrl = getBase64FromUrl(logoUrlInput);
 
+  const logoDesaUrlInput = config.logo_desa_url || "";
+  let logoDesaUrl = "";
+  if (logoDesaUrlInput && logoDesaUrlInput.trim() !== "") {
+    const fetched = getBase64FromUrl(logoDesaUrlInput);
+    if (fetched && fetched !== logoDesaUrlInput) {
+      logoDesaUrl = fetched;
+    }
+  }
+
   let html = `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -1111,15 +1178,21 @@ function generateHtmlToPdfLaporan(sppd, config) {
       border-collapse: collapse;
     }
     .kop-logo-cell {
-      width: 70px;
-      padding-right: 20px;
+      width: 80px;
+      padding-right: 15px;
+      vertical-align: middle;
+      text-align: center;
+    }
+    .kop-logo-cell-kanan {
+      width: 80px;
+      padding-left: 15px;
       vertical-align: middle;
       text-align: center;
     }
     .kop-logo {
-      height: 80px;
+      height: 75px;
       width: auto;
-      display: block;
+      display: inline-block;
     }
     .kop-teks-cell {
       text-align: center;
@@ -1129,6 +1202,7 @@ function generateHtmlToPdfLaporan(sppd, config) {
     .nama-kecamatan { font-size: 13pt; font-weight: bold; margin: 0; padding: 0; line-height: 1.1; }
     .nama-desa { font-size: 16pt; font-weight: bold; text-transform: uppercase; margin: 0; padding: 0; line-height: 1.2; }
     .info-kontak { font-size: 9pt; margin: 0; padding: 0; line-height: 1.1; }
+    .info-kodepos { font-size: 9pt; margin: 0; padding: 0; line-height: 1.1; text-align: right; }
 
     .kop-garis {
       border-bottom: 4px double black;
@@ -1175,10 +1249,10 @@ function generateHtmlToPdfLaporan(sppd, config) {
       flex-shrink: 0;
     }
     .ttd-cell-kiri { width: 50%; text-align: center; vertical-align: top; }
-    .ttd-cell-kanan { width: 50%; text-align: center; vertical-align: top; }
-    .ttd-nama-row { height: 140px; vertical-align: bottom; }
+    .ttd-cell-kanan { width: 50%; text-align: left; vertical-align: top; padding-left: 40px; }
+    .ttd-nama-row { height: auto; vertical-align: top; }
     .ttd-nama-teks { font-weight: bold; text-decoration: underline; text-align: center; }
-    .ttd-nama-teks-kanan { font-weight: bold; text-decoration: underline; text-align: center; }
+    .ttd-nama-teks-kanan { font-weight: bold; text-decoration: underline; text-align: left; padding-left: 0; }
 
     .area-dokumentasi {
       flex: 1;
@@ -1221,10 +1295,24 @@ function generateHtmlToPdfLaporan(sppd, config) {
 </head>
 <body>`;
 
-  const KAB = (config.kabupaten || "").replace(/Kabupaten\s+/i, "").toUpperCase();
-  const KEC = (config.kecamatan || "").replace(/Kecamatan\s+/i, "").toUpperCase();
-  const DESA = config.nama_desa;
-  const DESA_UPPER = (config.nama_desa || "").toUpperCase();
+  const KAB = (config.kabupaten || "")
+    .replace(/Pemerintah\s+/i, "")
+    .replace(/Kabupaten\s+/i, "")
+    .trim()
+    .toUpperCase();
+  const KEC = (config.kecamatan || "")
+    .replace(/Kecamatan\s+/i, "")
+    .trim()
+    .toUpperCase();
+    
+  let DESA_UPPER = (config.nama_desa || "").trim().toUpperCase();
+  if (DESA_UPPER && !DESA_UPPER.startsWith("DESA")) {
+    DESA_UPPER = "DESA " + DESA_UPPER;
+  }
+  
+  // Normalise location of signing by removing the prefix "Desa" if present (e.g. Dibuat di Kedung Panji)
+  const DESA = (config.nama_desa || "").replace(/Desa\s+/i, "").trim();
+  
   const ALAMAT = config.alamat_kantor;
   const EMAIL = config.email;
   const WEB = config.web;
@@ -1252,8 +1340,11 @@ function generateHtmlToPdfLaporan(sppd, config) {
           <div class="nama-kecamatan">KECAMATAN ${KEC}</div>
           <div class="nama-desa">${DESA_UPPER}</div>
           <div class="info-kontak">${ALAMAT}</div>
-          <div class="info-kontak">email : ${EMAIL} &nbsp; Website : ${WEB}</div>
-          <div class="info-kontak" style="text-align: right; padding-right: 20px;">Kode Pos : ${KODEPOS}</div>
+          <div class="info-kontak">email : ${EMAIL} &nbsp;|&nbsp; Website : ${WEB}</div>
+          <div class="info-kodepos">Kode Pos : ${KODEPOS}</div>
+        </td>
+        <td class="kop-logo-cell-kanan">
+          ${logoDesaUrl ? `<img class="kop-logo" src="${logoDesaUrl}" alt="Logo Desa">` : `<div style="width: 80px; height: 1px;"></div>`}
         </td>
       </tr>
     </table>
@@ -1283,28 +1374,34 @@ function generateHtmlToPdfLaporan(sppd, config) {
       <div class="item-laporan"><span class="nomor">1.</span><span class="isi">${LAP1}</span></div>
       <div class="item-laporan"><span class="nomor">2.</span><span class="isi">${LAP2}</span></div>
       <div class="item-laporan"><span class="nomor">3.</span><span class="isi">${LAP3}</span></div>
-      <div style="margin-top: 10px;">
-        <span style="font-weight: bold;">IV. PENUTUP </span>
-        <span>Demikian laporan ini disampaikan untuk menjadikan periksa</span>
-      </div>
+
+      <div class="section-heading">IV. PENUTUP</div>
+      <p style="margin-left: 32px;">Demikian laporan ini disampaikan untuk menjadikan periksa</p>
     </div>
 
     <table class="blok-ttd-table">
       <tr>
-        <td class="ttd-cell-kiri">Mengetahui,</td>
-        <td class="ttd-cell-kanan">Dibuat di &nbsp;&nbsp;: ${DESA}</td>
+        <td class="ttd-cell-kiri">
+          Mengetahui,<br>
+          KEPALA DESA ${DESA_UPPER.replace(/^DESA\s+/i, "")}
+        </td>
+        <td class="ttd-cell-kanan">
+          Dibuat di &nbsp;&nbsp;: ${DESA}<br>
+          Pada tanggal : ${TGL_KEMBALI}<br>
+          Pelapor,
+        </td>
       </tr>
       <tr>
-        <td class="ttd-cell-kiri">KEPALA DESA ${DESA_UPPER}</td>
-        <td class="ttd-cell-kanan">Pada tanggal : ${TGL_KEMBALI}</td>
+        <td style="height: 70px;"></td>
+        <td style="height: 70px;"></td>
       </tr>
       <tr>
-        <td class="ttd-cell-kiri"></td>
-        <td class="ttd-cell-kanan" style="height: 20px; vertical-align: bottom;">Pelapor,</td>
-      </tr>
-      <tr class="ttd-nama-row">
-        <td class="ttd-cell-kiri"><div class="ttd-nama-teks">${KADES}</div></td>
-        <td class="ttd-cell-kanan"><div class="ttd-nama-teks-kanan">${pelapor.NAMA}</div></td>
+        <td class="ttd-cell-kiri">
+          <div class="ttd-nama-teks">${KADES}</div>
+        </td>
+        <td class="ttd-cell-kanan">
+          <div class="ttd-nama-teks-kanan">${pelapor.NAMA}</div>
+        </td>
       </tr>
     </table>
   </div>`;
@@ -1332,6 +1429,876 @@ function generateHtmlToPdfLaporan(sppd, config) {
 
   const blob = Utilities.newBlob(html, "text/html", "Laporan.html");
   return blob.getAs("application/pdf");
+}
+
+function getBase64FromUrlShared(url) {
+  if (!url || typeof url !== 'string' || !url.startsWith('http')) return url;
+  
+  // Safety Fallback for Magetan Logo if everything else fails
+  const MAGETAN_FALLBACK_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Lambang_Kabupaten_Magetan.png/150px-Lambang_Kabupaten_Magetan.png";
+  
+  const fetchWithRetry = (targetUrl) => {
+    try {
+      const response = UrlFetchApp.fetch(targetUrl, { 
+        muteHttpExceptions: true,
+        validateHttpsCertificates: false,
+        followRedirects: true
+      });
+      if (response.getResponseCode() === 200) {
+        const blob = response.getBlob();
+        const contentType = blob.getContentType();
+        // Verify it's an image
+        if (contentType.indexOf("image") !== -1) {
+           return "data:" + contentType + ";base64," + Utilities.base64Encode(blob.getBytes());
+        }
+      }
+    } catch (e) {
+      console.error("Fetch failed for " + targetUrl + ": " + e.message);
+    }
+    return null;
+  };
+
+  // Try primary URL first
+  let result = fetchWithRetry(url);
+  if (result) return result;
+
+  // Try fallback URL if primary fails and is not the fallback itself
+  if (url !== MAGETAN_FALLBACK_URL) {
+    result = fetchWithRetry(MAGETAN_FALLBACK_URL);
+    if (result) return result;
+  }
+
+  return url; // Extreme fallback to raw URL
+}
+
+function terbilang(angka) {
+  angka = Math.floor(Math.abs(angka));
+  const huruf = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
+  let temp = "";
+  if (angka < 12) {
+    temp = " " + huruf[angka];
+  } else if (angka < 20) {
+    temp = terbilang(angka - 10) + " Belas";
+  } else if (angka < 100) {
+    temp = terbilang(Math.floor(angka / 10)) + " Puluh" + terbilang(angka % 10);
+  } else if (angka < 200) {
+    temp = " Seratus" + terbilang(angka - 100);
+  } else if (angka < 1000) {
+    temp = terbilang(Math.floor(angka / 100)) + " Ratus" + terbilang(angka % 100);
+  } else if (angka < 2000) {
+    temp = " Seribu" + terbilang(angka - 1000);
+  } else if (angka < 1000000) {
+    temp = terbilang(Math.floor(angka / 1000)) + " Ribu" + terbilang(angka % 1000);
+  } else if (angka < 1000000000) {
+    temp = terbilang(Math.floor(angka / 1000000)) + " Juta" + terbilang(angka % 1000000);
+  } else if (angka < 1000000000000) {
+    temp = terbilang(Math.floor(angka / 1000000000)) + " Milyar" + terbilang(angka % 1000000000);
+  }
+  return temp.trim();
+}
+
+function generateHtmlToPdfSPPD(sppd, config) {
+  const employees = getPegawai();
+  const empMap = {};
+  employees.forEach(e => { if (e.id) empMap[e.id] = e; });
+
+  const pelaporList = [];
+  for (let i = 1; i <= 5; i++) {
+    const empId = sppd["employeeId" + i];
+    if (empId) {
+      const emp = empMap[empId];
+      if (emp) pelaporList.push(emp);
+    }
+  }
+
+  // Fallback if no employees
+  if (pelaporList.length === 0) {
+    pelaporList.push({ name: "Belum Ditentukan", rank: "-", position: "-", niap: "-", pangkat: "-", golongan: "-", address: "-" });
+  }
+
+  const KAB = (config.kabupaten || "")
+    .replace(/Pemerintah\s+/i, "")
+    .replace(/Kabupaten\s+/i, "")
+    .trim()
+    .toUpperCase();
+  const KEC = (config.kecamatan || "")
+    .replace(/Kecamatan\s+/i, "")
+    .trim()
+    .toUpperCase();
+    
+  let DESA_UPPER = (config.nama_desa || "").trim().toUpperCase();
+  if (DESA_UPPER && !DESA_UPPER.startsWith("DESA")) {
+    DESA_UPPER = "DESA " + DESA_UPPER;
+  }
+  
+  const DESA = (config.nama_desa || "").replace(/Desa\s+/i, "").trim();
+  const ALAMAT = config.alamat_kantor || "";
+  const EMAIL = config.email || "";
+  const WEB = config.web || "";
+  const KODEPOS = config.kodepos || "";
+  const KADES = config.kepala_desa || "";
+  
+  const NOMOR = sppd.number || "-";
+  const TGL_BERANGKAT = formatDateIndo(sppd.dateStart);
+  const TGL_KEMBALI = formatDateIndo(sppd.dateEnd);
+  const TUJUAN = sppd.destination || "";
+  const MAKSUD = sppd.purpose || "";
+  const ALAT_ANGKUT = sppd.transport || "Kendaraan Dinas / Umum";
+  const LAMA_HARI = calculateDays(sppd.dateStart, sppd.dateEnd);
+  const MATA_ANGGARAN = config.kode_anggaran || "APBDesa / Operasional Desa";
+  const DASAR = sppd.basis || "-";
+
+  // Base64 Logo Loading
+  const defaultLogo = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Lambang_Kabupaten_Magetan.png/150px-Lambang_Kabupaten_Magetan.png";
+  const logoUrlInput = config.logo_url || defaultLogo;
+  const logoUrl = getBase64FromUrlShared(logoUrlInput);
+
+  const logoDesaUrlInput = config.logo_desa_url || "";
+  let logoDesaUrl = "";
+  if (logoDesaUrlInput && logoDesaUrlInput.trim() !== "") {
+    const fetched = getBase64FromUrlShared(logoDesaUrlInput);
+    if (fetched && fetched !== logoDesaUrlInput) {
+      logoDesaUrl = fetched;
+    }
+  }
+
+  // Master Kop Surat Component (Page 1 ONLY)
+  const kopSuratHtml = `
+    <table class="kop-surat-table">
+      <tr>
+        <td class="kop-logo-cell">
+          <img class="kop-logo" src="${logoUrl}" alt="Logo">
+        </td>
+        <td class="kop-teks-cell">
+          <div class="nama-pemda">PEMERINTAH KABUPATEN ${KAB}</div>
+          <div class="nama-kecamatan">KECAMATAN ${KEC}</div>
+          <div class="nama-desa">${DESA_UPPER}</div>
+          <div class="info-kontak">${ALAMAT}</div>
+          <div class="info-kontak">email : ${EMAIL} &nbsp;|&nbsp; Website : ${WEB}</div>
+          <div class="info-kodepos">Kode Pos : ${KODEPOS}</div>
+        </td>
+        <td class="kop-logo-cell-kanan">
+          ${logoDesaUrl ? `<img class="kop-logo" src="${logoDesaUrl}" alt="Logo Desa">` : `<div style="width: 80px; height: 1px;"></div>`}
+        </td>
+      </tr>
+    </table>
+    <div class="kop-garis"></div>`;
+
+  // Dynamically build "Kepada" for Halaman 1 (Surat Tugas)
+  let kepadaHtml = "";
+  const listCount = pelaporList.length;
+  if (listCount === 1) {
+    const p = pelaporList[0];
+    kepadaHtml = `
+      <table style="width: 100%; border-collapse: collapse; font-family: 'Times New Roman', Times, serif; font-size: 10.5pt; line-height: 1.35;">
+        <tr>
+          <td style="width: 110px; vertical-align: top; padding: 1px 0;">1. Nama</td>
+          <td style="width: 15px; vertical-align: top; text-align: center; padding: 1px 0;">:</td>
+          <td style="font-weight: bold; vertical-align: top; padding: 1px 0;">${p.name}</td>
+        </tr>
+        <tr>
+          <td style="vertical-align: top; padding: 1px 0; padding-left: 15px;">NIAP/NIK</td>
+          <td style="vertical-align: top; text-align: center; padding: 1px 0;">:</td>
+          <td style="vertical-align: top; padding: 1px 0;">${p.niap || p.nik || '-'}</td>
+        </tr>
+        <tr>
+          <td style="vertical-align: top; padding: 1px 0; padding-left: 15px;">Jabatan</td>
+          <td style="vertical-align: top; text-align: center; padding: 1px 0;">:</td>
+          <td style="vertical-align: top; padding: 1px 0;">${p.position || '-'}</td>
+        </tr>
+        <tr>
+          <td style="vertical-align: top; padding: 1px 0; padding-left: 15px;">Alamat</td>
+          <td style="vertical-align: top; text-align: center; padding: 1px 0;">:</td>
+          <td style="vertical-align: top; padding: 1px 0;">${p.address || '-'}</td>
+        </tr>
+      </table>`;
+  } else {
+    kepadaHtml = `
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid black; font-family: 'Times New Roman', Times, serif; font-size: 10pt; line-height: 1.35;">
+        <thead>
+          <tr style="background-color: #f2f2f2;">
+            <th style="border: 1px solid black; padding: 4px; width: 35px; text-align: center;">No</th>
+            <th style="border: 1px solid black; padding: 4px; text-align: left;">Nama</th>
+            <th style="border: 1px solid black; padding: 4px; text-align: left; width: 140px;">NIAP/NIK</th>
+            <th style="border: 1px solid black; padding: 4px; text-align: left; width: 140px;">Jabatan</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${pelaporList.map((p, idx) => `
+            <tr>
+              <td style="border: 1px solid black; padding: 4px; text-align: center;">${idx + 1}.</td>
+              <td style="border: 1px solid black; padding: 4px; font-weight: bold;">${p.name}</td>
+              <td style="border: 1px solid black; padding: 4px;">${p.niap || p.nik || '-'}</td>
+              <td style="border: 1px solid black; padding: 4px;">${p.position || '-'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  // Adjust spacing metrics based on count for Surat Tugas
+  let ttdSpacing = "50px";
+  let marginBetweenSections = "12px";
+  if (listCount > 2) {
+    ttdSpacing = "35px";
+    marginBetweenSections = "8px";
+  }
+
+  let htmlSuratTugas = `
+  <!-- HALAMAN 1: SURAT TUGAS -->
+  <div class="halaman">
+    ${kopSuratHtml}
+
+    <div class="judul-dokumen" style="font-size: 13pt; margin-top: 4px; margin-bottom: 1px; text-align: center; font-weight: bold; text-decoration: underline;">SURAT TUGAS</div>
+    <div class="nomor-dokumen" style="margin-bottom: 12px; text-align: center;">Nomor : ${NOMOR}</div>
+
+    <!-- DASAR TUGAS -->
+    <div style="margin-bottom: ${marginBetweenSections};">
+      <table style="width: 100%; border-collapse: collapse; font-family: 'Times New Roman', Times, serif; font-size: 10.5pt; line-height: 1.35;">
+        <tr>
+          <td style="width: 90px; vertical-align: top;">Dasar</td>
+          <td style="width: 15px; vertical-align: top; text-align: center;">:</td>
+          <td style="vertical-align: top; text-align: justify;">${DASAR}</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- MEMERINTAHKAN -->
+    <div style="text-align: center; font-weight: bold; font-size: 11pt; margin-top: ${marginBetweenSections}; margin-bottom: ${marginBetweenSections}; letter-spacing: 1px;">MEMERINTAHKAN :</div>
+
+    <!-- KEPADA -->
+    <div style="margin-bottom: ${marginBetweenSections};">
+      <table style="width: 100%; border-collapse: collapse; font-family: 'Times New Roman', Times, serif; font-size: 10.5pt; line-height: 1.35;">
+        <tr>
+          <td style="width: 90px; vertical-align: top;">Kepada</td>
+          <td style="width: 15px; vertical-align: top; text-align: center;">:</td>
+          <td style="vertical-align: top;">
+            ${kepadaHtml}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- UNTUK -->
+    <div style="margin-bottom: ${marginBetweenSections};">
+      <table style="width: 100%; border-collapse: collapse; font-family: 'Times New Roman', Times, serif; font-size: 10.5pt; line-height: 1.35;">
+        <tr>
+          <td style="width: 90px; vertical-align: top;">Untuk</td>
+          <td style="width: 15px; vertical-align: top; text-align: center;">:</td>
+          <td style="vertical-align: top;">
+            <table style="width: 100%; border-collapse: collapse; font-family: 'Times New Roman', Times, serif;">
+              <tr>
+                <td style="width: 20px; vertical-align: top; font-weight: bold;">1.</td>
+                <td style="vertical-align: top; text-align: justify; padding-bottom: 4px;">Mengikuti kegiatan ${MAKSUD} di ${TUJUAN}</td>
+              </tr>
+              <tr>
+                <td style="vertical-align: top; font-weight: bold;">2.</td>
+                <td style="vertical-align: top; text-align: justify; padding-bottom: 4px;">Selama ${LAMA_HARI} hari dari tanggal ${TGL_BERANGKAT} sampai dengan tanggal ${TGL_KEMBALI}</td>
+              </tr>
+              <tr>
+                <td style="vertical-align: top; font-weight: bold;">3.</td>
+                <td style="vertical-align: top; text-align: justify;">Setelah melaksanakan tugas, laporan disampaikan ke Kepala Desa</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- PENUTUP -->
+    <div style="font-size: 10.5pt; line-height: 1.35; text-align: justify; margin-top: ${marginBetweenSections}; margin-bottom: 2px;">
+      Demikian surat tugas ini dibuat untuk dilaksanakan dengan penuh rasa tanggung Jawab.
+    </div>
+
+    <!-- TANDA TANGAN (Surat Tugas) -->
+    <div style="font-size: 10.5pt; line-height: 1.35; width: 100%; margin-top: 8px;">
+      <table style="width: 100%; border-collapse: collapse; font-family: 'Times New Roman', Times, serif;">
+        <tr>
+          <td style="width: 50%;"></td>
+          <td style="width: 50%; text-align: left; padding-left: 50px;">
+            Ditetapkan di : Poncol<br>
+            Pada tanggal : ${TGL_BERANGKAT}<br>
+            <strong>KEPALA DESA PONCOL</strong>
+            <br>
+            <span style="display: block; height: ${ttdSpacing};"></span>
+            <span style="font-weight: bold; text-decoration: underline;">${KADES}</span>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>`;
+
+  // Dynamically build SPD Page for EACH employee
+  let htmlSpdPages = "";
+  pelaporList.forEach((p, idx) => {
+    htmlSpdPages += `
+  <!-- HALAMAN ${idx + 2}: SURAT PERJALANAN DINAS (SPD) UNTUK ${p.name.toUpperCase()} -->
+  <div class="halaman">
+    
+    <!-- HEADER SPD TOP RIGHT -->
+    <div style="align-self: flex-end; font-size: 9.5pt; font-family: 'Times New Roman', Times, serif; line-height: 1.25; margin-bottom: 8px; text-align: left;">
+      <table style="border-collapse: collapse; font-size: 9.5pt;">
+        <tr>
+          <td style="width: 100px; padding: 1px 0;">Lembar ke</td>
+          <td style="width: 15px; padding: 1px 0; text-align: center;">:</td>
+          <td style="padding: 1px 0;">1</td>
+        </tr>
+        <tr>
+          <td style="padding: 1px 0;">Kode Anggaran</td>
+          <td style="padding: 1px 0; text-align: center;">:</td>
+          <td style="padding: 1px 0;">01.02.03</td>
+        </tr>
+        <tr>
+          <td style="padding: 1px 0;">Nomor</td>
+          <td style="padding: 1px 0; text-align: center;">:</td>
+          <td style="padding: 1px 0;">${NOMOR}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="judul-dokumen" style="font-size: 12.5pt; text-align: center; font-weight: bold; margin-bottom: 12px; font-family: 'Times New Roman', Times, serif;">SURAT PERJALANAN DINAS ( SPD )</div>
+
+    <!-- MAIN GRID TABLE -->
+    <table style="width: 100%; border-collapse: collapse; border: 1.5px solid black; font-family: 'Times New Roman', Times, serif; font-size: 10pt; line-height: 1.35; flex-shrink: 0;">
+      <!-- Row 1 -->
+      <tr>
+        <td style="border: 1px solid black; width: 35px; text-align: center; padding: 4px;">1</td>
+        <td style="border: 1px solid black; width: 240px; padding: 4px;">Pemegang Kekuasaan Pengelolaan Keuangan Desa</td>
+        <td style="border: 1px solid black; width: 15px; text-align: center; padding: 4px;">:</td>
+        <td style="border: 1px solid black; padding: 4px;">${KADES}</td>
+      </tr>
+      <!-- Row 2 -->
+      <tr>
+        <td style="border: 1px solid black; text-align: center; padding: 4px; vertical-align: top;" rowspan="2">2</td>
+        <td style="border: 1px solid black; padding: 4px; border-bottom: none;">a. Nama yang diperintah</td>
+        <td style="border: 1px solid black; text-align: center; padding: 4px; border-bottom: none;">:</td>
+        <td style="border: 1px solid black; padding: 4px; font-weight: bold; border-bottom: none;">${p.name}</td>
+      </tr>
+      <tr>
+        <td style="border: 1px solid black; padding: 4px; border-top: none;">b. Jabatan</td>
+        <td style="border: 1px solid black; text-align: center; padding: 4px; border-top: none;">:</td>
+        <td style="border: 1px solid black; padding: 4px; border-top: none;">${p.position || '-'}</td>
+      </tr>
+      <!-- Row 3 -->
+      <tr>
+        <td style="border: 1px solid black; text-align: center; padding: 4px;">3</td>
+        <td style="border: 1px solid black; padding: 4px;">Maksud Perjalanan Dinas</td>
+        <td style="border: 1px solid black; text-align: center; padding: 4px;">:</td>
+        <td style="border: 1px solid black; padding: 4px;">${MAKSUD}</td>
+      </tr>
+      <!-- Row 4 -->
+      <tr>
+        <td style="border: 1px solid black; text-align: center; padding: 4px;">4</td>
+        <td style="border: 1px solid black; padding: 4px;">Alat angkut yang dipergunakan</td>
+        <td style="border: 1px solid black; text-align: center; padding: 4px;">:</td>
+        <td style="border: 1px solid black; padding: 4px;">${ALAT_ANGKUT}</td>
+      </tr>
+      <!-- Row 5 -->
+      <tr>
+        <td style="border: 1px solid black; text-align: center; padding: 4px; vertical-align: top;" rowspan="3">5</td>
+        <td style="border: 1px solid black; padding: 4px; border-bottom: none;">a. Tempat berangkat</td>
+        <td style="border: 1px solid black; text-align: center; padding: 4px; border-bottom: none;">:</td>
+        <td style="border: 1px solid black; padding: 4px; border-bottom: none;">Poncol</td>
+      </tr>
+      <tr>
+        <td style="border: 1px solid black; padding: 4px; border-top: none; border-bottom: none;">b. Lamanya Perjalanan Dinas</td>
+        <td style="border: 1px solid black; text-align: center; padding: 4px; border-top: none; border-bottom: none;">:</td>
+        <td style="border: 1px solid black; padding: 4px; border-top: none; border-bottom: none;">${LAMA_HARI} hari</td>
+      </tr>
+      <tr>
+        <td style="border: 1px solid black; padding: 4px; border-top: none;">c. Tanggal berangkat</td>
+        <td style="border: 1px solid black; text-align: center; padding: 4px; border-top: none;">:</td>
+        <td style="border: 1px solid black; padding: 4px; border-top: none;">${TGL_BERANGKAT}</td>
+      </tr>
+      <!-- Row 6 -->
+      <tr>
+        <td style="border: 1px solid black; text-align: center; padding: 4px; vertical-align: top;" rowspan="2">6</td>
+        <td style="border: 1px solid black; padding: 4px; border-bottom: none;">a. Pembebanan Anggaran</td>
+        <td style="border: 1px solid black; text-align: center; padding: 4px; border-bottom: none;">:</td>
+        <td style="border: 1px solid black; padding: 4px; border-bottom: none;">APB Desa T.A 2026</td>
+      </tr>
+      <tr>
+        <td style="border: 1px solid black; padding: 4px; border-top: none;">b. Mata Anggaran</td>
+        <td style="border: 1px solid black; text-align: center; padding: 4px; border-top: none;">:</td>
+        <td style="border: 1px solid black; padding: 4px; border-top: none;">${MATA_ANGGARAN}</td>
+      </tr>
+      <!-- Row 7 -->
+      <tr>
+        <td style="border: 1px solid black; text-align: center; padding: 4px;">7</td>
+        <td style="border: 1px solid black; padding: 4px;">Keterangan lain-lain</td>
+        <td style="border: 1px solid black; text-align: center; padding: 4px;">:</td>
+        <td style="border: 1px solid black; padding: 4px;">-</td>
+      </tr>
+
+      <!-- Signature section for Row 7 -->
+      <tr>
+        <td style="border: 1px solid black;" colspan="4">
+          <div style="width: 100%; display: flex; justify-content: flex-end; padding: 4px 20px 4px 0;">
+            <div style="text-align: left; width: 220px; font-size: 9.5pt; line-height: 1.3;">
+              Dikeluarkan di : Poncol<br>
+              Pada tanggal &nbsp;&nbsp;: ${TGL_BERANGKAT}<br>
+              <strong>KEPALA DESA PONCOL</strong>
+              <br><br><br>
+              <span style="font-weight: bold; text-decoration: underline;">${KADES}</span>
+            </div>
+          </div>
+        </td>
+      </tr>
+
+      <!-- Row 8 (Tiba & Kembali destination) -->
+      <tr>
+        <td style="border: 1px solid black; text-align: center; padding: 4px; vertical-align: top;">8</td>
+        <td style="border: 1px solid black; padding: 0;" colspan="3">
+          <table style="width: 100%; border-collapse: collapse; font-size: 9pt; line-height: 1.3;">
+            <tr>
+              <td style="width: 50%; border-right: 1px solid black; padding: 4px; vertical-align: top;">
+                Tiba di tempat tujuan<br>
+                pada tanggal : ${TGL_BERANGKAT}<br>
+                Kepala .....................................<br><br><br>
+                .......................................................
+              </td>
+              <td style="width: 50%; padding: 4px; vertical-align: top;">
+                Kembali dari tempat tujuan<br>
+                Pada tanggal : ${TGL_KEMBALI}<br>
+                Kepala .....................................<br><br><br>
+                .......................................................
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- Tiba kembali di, Telah diperiksa wrapper row -->
+      <tr>
+        <td style="border: 1px solid black; padding: 4px;" colspan="4">
+          <table style="width: 100%; border-collapse: collapse; font-size: 9pt; line-height: 1.3;">
+            <tr>
+              <td style="padding: 4px; vertical-align: top;">
+                Tiba kembali di : Poncol<br>
+                Pada tanggal &nbsp;&nbsp;&nbsp;&nbsp;: ${TGL_KEMBALI}<br>
+                Telah diperiksa, dengan keterangan bahwa perjalanan tersebut diatas benar dilakukan atas perintahnya dan semata-mata untuk kepentingan jabatan dalam waktu yang sesingkat-singkatnya
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- Final signature row (Centered) -->
+      <tr>
+        <td style="border: 1px solid black; padding: 8px 0;" colspan="4">
+          <div style="width: 100%; display: flex; justify-content: center; align-items: center; text-align: center;">
+            <div style="font-size: 9.5pt; line-height: 1.3; width: 250px;">
+              Poncol, ${TGL_KEMBALI}<br>
+              <strong>KEPALA DESA PONCOL</strong>
+              <br><br><br>
+              <span style="font-weight: bold; text-decoration: underline;">${KADES}</span>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Legal note at bottom -->
+    <div style="font-size: 7.5pt; line-height: 1.25; border: 1.5px solid black; border-top: none; padding: 4px 6px; text-align: justify; font-family: 'Times New Roman', Times, serif;">
+      Pejabat yang berwenang menerbitkan SPD, perangkat yang melakukan perjalanan dinas, para pejabat yang mengesahkan tanggal berangkat/tiba serta Bendaharawan,  bertanggung jawab berdasarkan peraturan peraturan Keuangan Negara apabila Negara mendapat rugi akibat kesalahan/kealpaannya.
+    </div>
+  </div>`;
+  });
+
+  const html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SURAT PERJALANAN DINAS - ${NOMOR}</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: "Times New Roman", Times, serif; font-size: 11pt; color: #000; background: #fff; line-height: 1.3; -webkit-print-color-adjust: exact; }
+
+    .halaman {
+      width: 210mm;
+      height: 297mm;
+      max-height: 297mm;
+      overflow: hidden;
+      padding: 10mm 15mm 10mm 20mm;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      background: white;
+      box-sizing: border-box;
+      page-break-after: always;
+      break-after: page;
+    }
+    .halaman:last-of-type {
+      page-break-after: auto;
+      break-after: auto;
+    }
+
+    /* Page break for printing */
+    @media print {
+      body { margin: 0; }
+      .halaman {
+        page-break-after: always;
+        break-after: page;
+        border: none;
+      }
+      .halaman:last-of-type {
+        page-break-after: auto;
+        break-after: auto;
+      }
+    }
+
+    @media screen {
+      body { background: #e0e0e0; padding: 20px; }
+      .halaman {
+        margin: 0 auto 20px auto;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      }
+    }
+
+    .kop-surat-table {
+      width: 100%;
+      margin-bottom: 5px;
+      border-collapse: collapse;
+    }
+    .kop-logo-cell {
+      width: 80px;
+      padding-right: 15px;
+      vertical-align: middle;
+      text-align: center;
+    }
+    .kop-logo-cell-kanan {
+      width: 80px;
+      padding-left: 15px;
+      vertical-align: middle;
+      text-align: center;
+    }
+    .kop-logo {
+      height: 75px;
+      width: auto;
+      display: inline-block;
+    }
+    .kop-teks-cell {
+      text-align: center;
+      vertical-align: middle;
+    }
+    .nama-pemda { font-size: 13pt; font-weight: bold; margin: 0; padding: 0; line-height: 1.1; }
+    .nama-kecamatan { font-size: 13pt; font-weight: bold; margin: 0; padding: 0; line-height: 1.1; }
+    .nama-desa { font-size: 16pt; font-weight: bold; text-transform: uppercase; margin: 0; padding: 0; line-height: 1.2; }
+    .info-kontak { font-size: 9pt; margin: 0; padding: 0; line-height: 1.1; }
+    .info-kodepos { font-size: 9pt; margin: 0; padding: 0; line-height: 1.1; text-align: right; }
+
+    .kop-garis {
+      border-bottom: 4px double black;
+      margin-top: 1px;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  ${htmlSuratTugas}
+  ${htmlSpdPages}
+
+</body>
+</html>`;
+
+  return Utilities.newBlob(html, "text/html", "sppd.html").getAs("application/pdf");
+}
+
+function generateHtmlToPdfSPJ(sppd, config) {
+  const employees = getPegawai();
+  const empMap = {};
+  employees.forEach(e => { if (e.id) empMap[e.id] = e; });
+
+  const pelaporList = [];
+  for (let i = 1; i <= 5; i++) {
+    const empId = sppd["employeeId" + i];
+    if (empId) {
+      const emp = empMap[empId];
+      if (emp) pelaporList.push(emp);
+    }
+  }
+
+  const pegawaiUtama = pelaporList[0] || { name: "Belum Ditentukan", rank: "-", position: "-", niap: "-", pangkat: "-", golongan: "-" };
+
+  // Logo mapping (base64)
+  const defaultLogo = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Lambang_Kabupaten_Magetan.png/150px-Lambang_Kabupaten_Magetan.png";
+  const logoUrlInput = config.logo_url || defaultLogo;
+  const logoUrl = getBase64FromUrlShared(logoUrlInput);
+
+  const logoDesaUrlInput = config.logo_desa_url || "";
+  let logoDesaUrl = "";
+  if (logoDesaUrlInput && logoDesaUrlInput.trim() !== "") {
+    const fetched = getBase64FromUrlShared(logoDesaUrlInput);
+    if (fetched && fetched !== logoDesaUrlInput) {
+      logoDesaUrl = fetched;
+    }
+  }
+
+  const KAB = (config.kabupaten || "")
+    .replace(/Pemerintah\s+/i, "")
+    .replace(/Kabupaten\s+/i, "")
+    .trim()
+    .toUpperCase();
+  const KEC = (config.kecamatan || "")
+    .replace(/Kecamatan\s+/i, "")
+    .trim()
+    .toUpperCase();
+    
+  let DESA_UPPER = (config.nama_desa || "").trim().toUpperCase();
+  if (DESA_UPPER && !DESA_UPPER.startsWith("DESA")) {
+    DESA_UPPER = "DESA " + DESA_UPPER;
+  }
+  
+  const DESA = (config.nama_desa || "").replace(/Desa\s+/i, "").trim();
+  
+  const ALAMAT = config.alamat_kantor;
+  const EMAIL = config.email;
+  const WEB = config.web;
+  const KODEPOS = config.kodepos;
+  const KADES = config.kepala_desa;
+  const SEKDES = config.sekretaris_desa || "Sekretaris Desa";
+  const BENDAHARA = config.bendahara || "Bendahara Desa";
+  
+  const NOMOR = sppd.number || "-";
+  const TGL_BERANGKAT = formatDateIndo(sppd.dateStart);
+  const TGL_KEMBALI = formatDateIndo(sppd.dateEnd);
+  const TGL_BAYAR = sppd.tglBayar ? formatDateIndo(sppd.tglBayar) : formatDateIndo(sppd.dateEnd);
+  
+  const TUJUAN = sppd.destination;
+  const MAKSUD = sppd.purpose;
+  
+  const UANG_HARIAN = Number(sppd.uangHarian || 0);
+  const UANG_BBM = Number(sppd.uangBBM || 0);
+  const TOTAL = UANG_HARIAN + UANG_BBM;
+  const TERBILANG = terbilang(TOTAL) + " Rupiah";
+
+  let html = '<!DOCTYPE html>' + 
+'<html lang="id">' + 
+'<head>' + 
+'  <meta charset="UTF-8">' + 
+'  <meta name="viewport" content="width=device-width, initial-scale=1.0">' + 
+'  <title>SURAT PERTANGGUNGJAWABAN (SPJ) - ' + NOMOR + '</title>' + 
+'  <style>' + 
+'    @page { size: A4; margin: 0; }' + 
+'    * { margin: 0; padding: 0; box-sizing: border-box; }' + 
+'    body { font-family: "Times New Roman", Times, serif; font-size: 11pt; color: #000; background: #fff; line-height: 1.3; -webkit-print-color-adjust: exact; }' + 
+'' + 
+'    .halaman {' + 
+'      width: 210mm;' + 
+'      height: 297mm;' + 
+'      max-height: 297mm;' + 
+'      overflow: hidden;' + 
+'      padding: 10mm 15mm 10mm 20mm;' + 
+'      position: relative;' + 
+'      display: flex;' + 
+'      flex-direction: column;' + 
+'      background: white;' + 
+'      box-sizing: border-box;' + 
+'      page-break-inside: avoid;' + 
+'      break-inside: avoid;' + 
+'    }' + 
+'' + 
+'    /* Page break for printing */' + 
+'    @media print {' + 
+'      body { margin: 0; }' + 
+'      .halaman {' + 
+'        page-break-before: always;' + 
+'        break-before: page;' + 
+'        border: none;' + 
+'      }' + 
+'    }' + 
+'' + 
+'    @media screen {' + 
+'      body { background: #e0e0e0; padding: 20px; }' + 
+'      .halaman {' + 
+'        margin: 0 auto 20px auto;' + 
+'        box-shadow: 0 2px 8px rgba(0,0,0,0.3);' + 
+'      }' + 
+'    }' + 
+'' + 
+'    .kop-surat-table {' + 
+'      width: 100%;' + 
+'      margin-bottom: 5px;' + 
+'      border-collapse: collapse;' + 
+'    }' + 
+'    .kop-logo-cell {' + 
+'      width: 80px;' + 
+'      padding-right: 15px;' + 
+'      vertical-align: middle;' + 
+'      text-align: center;' + 
+'    }' + 
+'    .kop-logo-cell-kanan {' + 
+'      width: 80px;' + 
+'      padding-left: 15px;' + 
+'      vertical-align: middle;' + 
+'      text-align: center;' + 
+'    }' + 
+'    .kop-logo {' + 
+'      height: 70px;' + 
+'      width: auto;' + 
+'      display: inline-block;' + 
+'    }' + 
+'    .kop-teks-cell {' + 
+'      text-align: center;' + 
+'      vertical-align: middle;' + 
+'    }' + 
+'    .nama-pemda { font-size: 11pt; font-weight: bold; margin: 0; padding: 0; line-height: 1.1; }' + 
+'    .nama-kecamatan { font-size: 11pt; font-weight: bold; margin: 0; padding: 0; line-height: 1.1; }' + 
+'    .nama-desa { font-size: 14pt; font-weight: bold; text-transform: uppercase; margin: 0; padding: 0; line-height: 1.2; }' + 
+'    .info-kontak { font-size: 8pt; margin: 0; padding: 0; line-height: 1.1; }' + 
+'    .info-kodepos { font-size: 8pt; margin: 0; padding: 0; line-height: 1.1; text-align: right; }' + 
+'' + 
+'    .kop-garis {' + 
+'      border-bottom: 3px double black;' + 
+'      margin-top: 1px;' + 
+'      margin-bottom: 8px;' + 
+'      flex-shrink: 0;' + 
+'    }' + 
+'  </style>' + 
+'</head>' + 
+'<body>';
+
+  const finalList = pelaporList.length > 0 ? pelaporList : [{ name: "Belum Ditentukan" }];
+  let pagesHtml = "";
+
+  finalList.forEach((emp, idx) => {
+    const isLast = idx === finalList.length - 1;
+    const pageBreakStyle = isLast ? "" : "page-break-after: always; break-after: page;";
+    
+    pagesHtml += 
+'    <div class="halaman" style="' + pageBreakStyle + '">' + 
+'      <table class="kop-surat-table">' + 
+'        <tr>' + 
+'          <td class="kop-logo-cell">' + 
+'            <img class="kop-logo" src="' + logoUrl + '" alt="Logo">' + 
+'          </td>' + 
+'          <td class="kop-teks-cell">' + 
+'            <div class="nama-pemda">PEMERINTAH KABUPATEN ' + KAB + '</div>' + 
+'            <div class="nama-kecamatan">KECAMATAN ' + KEC + '</div>' + 
+'            <div class="nama-desa">' + DESA_UPPER + '</div>' + 
+'            <div class="info-kontak">' + ALAMAT + '</div>' + 
+'            <div class="info-kontak">email : ' + EMAIL + ' &nbsp;|&nbsp; Website : ' + WEB + '</div>' + 
+'            <div class="info-kodepos">Kode Pos : ' + KODEPOS + '</div>' + 
+'          </td>' + 
+'          <td class="kop-logo-cell-kanan">' + 
+'            ' + (logoDesaUrl ? '<img class="kop-logo" src="' + logoDesaUrl + '" alt="Logo Desa">' : '<div style="width: 80px; height: 1px;"></div>') + 
+'          </td>' + 
+'        </tr>' + 
+'      </table>' + 
+'      <div class="kop-garis"></div>' + 
+'' + 
+'      <div style="text-align: center; font-weight: bold; font-family: \'Times New Roman\', Times, serif; font-size: 11pt; margin-top: 5px; text-transform: uppercase;">' + 
+'        SURAT PERTANGGUNGJAWABAN (SPJ)' + 
+'      </div>' + 
+'      <div style="text-align: center; font-family: \'Times New Roman\', Times, serif; font-size: 9.5pt; margin-top: 2px; margin-bottom: 12px;">' + 
+'        Lampiran SPD : ' + NOMOR + ' tanggal ' + TGL_BERANGKAT + '' + 
+'      </div>' + 
+'' + 
+'      <table style="width: 100%; border-collapse: collapse; font-family: \'Times New Roman\', Times, serif; font-size: 9.5pt; margin-bottom: 15px;">' + 
+'        <thead>' + 
+'          <tr>' + 
+'            <th style="border: 1px solid black; width: 45px; text-align: center; padding: 6px; font-weight: bold;">No</th>' + 
+'            <th style="border: 1px solid black; text-align: center; padding: 6px; font-weight: bold;">RINCIAN BIAYA</th>' + 
+'            <th style="border: 1px solid black; width: 180px; text-align: center; padding: 6px; font-weight: bold;">JUMLAH</th>' + 
+'            <th style="border: 1px solid black; width: 180px; text-align: center; padding: 6px; font-weight: bold;">KETERANGAN</th>' + 
+'          </tr>' + 
+'        </thead>' + 
+'        <tbody>' + 
+'          <tr>' + 
+'            <td style="border: 1px solid black; text-align: center; padding: 5px;">1</td>' + 
+'            <td style="border: 1px solid black; padding: 5px; text-align: left;">Uang Harian</td>' + 
+'            <td style="border: 1px solid black; padding: 5px; text-align: left;">Rp. ' + formatRupiah(UANG_HARIAN) + '</td>' + 
+'            <td style="border: 1px solid black; padding: 5px;"></td>' + 
+'          </tr>' + 
+'          <tr>' + 
+'            <td style="border: 1px solid black; text-align: center; padding: 5px;">2</td>' + 
+'            <td style="border: 1px solid black; padding: 5px; text-align: left;">Uang BBM</td>' + 
+'            <td style="border: 1px solid black; padding: 5px; text-align: left;">Rp. ' + formatRupiah(UANG_BBM) + '</td>' + 
+'            <td style="border: 1px solid black; padding: 5px;"></td>' + 
+'          </tr>' + 
+'          <tr style="font-weight: bold;">' + 
+'            <td style="border: 1px solid black; padding: 5px;"></td>' + 
+'            <td style="border: 1px solid black; text-align: right; padding: 5px; font-weight: bold;">JUMLAH</td>' + 
+'            <td style="border: 1px solid black; padding: 5px; text-align: left; font-weight: bold;">Rp. ' + formatRupiah(TOTAL) + '</td>' + 
+'            <td style="border: 1px solid black; padding: 5px;"></td>' + 
+'          </tr>' + 
+'        </tbody>' + 
+'      </table>' + 
+'' + 
+'      <table style="width: 100%; border-collapse: collapse; font-family: \'Times New Roman\', Times, serif; font-size: 9.5pt; margin-top: 10px; margin-bottom: 15px; line-height: 1.35;">' + 
+'        <tr>' + 
+'          <td style="width: 50%; vertical-align: top; text-align: left; padding-left: 10px;">' + 
+'            Telah dibayar sejumlah<br>' + 
+'            Rp. ' + formatRupiah(TOTAL) + '<br>' + 
+'            Bendahara' + 
+'            <br><br><br><br>' + 
+'            <strong>' + BENDAHARA + '</strong>' + 
+'          </td>' + 
+'          <td style="width: 50%; vertical-align: top; text-align: right; padding-right: 10px;">' + 
+'            <div style="text-align: left; display: inline-block; width: 220px;">' + 
+'              Poncol, ' + TGL_BAYAR + '<br>' + 
+'              Telah menerima jumlah uang sebesar<br>' + 
+'              Rp. ' + formatRupiah(TOTAL) + '<br>' + 
+'              yang menerima' + 
+'              <br><br><br><br>' + 
+'              <strong>' + emp.name + '</strong>' + 
+'            </div>' + 
+'          </td>' + 
+'        </tr>' + 
+'      </table>' + 
+'' + 
+'      <div style="border-top: 1px dashed black; margin-top: 15px; margin-bottom: 15px; width: 100%;"></div>' + 
+'' + 
+'      <div style="text-align: center; font-weight: bold; font-family: \'Times New Roman\', Times, serif; font-size: 10pt; margin-bottom: 12px; letter-spacing: 0.5px;">' + 
+'        PERHITUNGAN SPD RAMPUNG' + 
+'      </div>' + 
+'' + 
+'      <table style="width: 320px; font-family: \'Times New Roman\', Times, serif; font-size: 9.5pt; margin-left: 10px; margin-bottom: 20px; border-collapse: collapse;">' + 
+'        <tr>' + 
+'          <td style="width: 170px; padding: 4px 0;">Ditetapkan sejumlah</td>' + 
+'          <td style="width: 15px; text-align: center;">:</td>' + 
+'          <td style="padding: 4px 0;">Rp. ' + formatRupiah(TOTAL) + '</td>' + 
+'        </tr>' + 
+'        <tr>' + 
+'          <td style="padding: 4px 0;">Yang telah dibayar semula</td>' + 
+'          <td style="text-align: center;">:</td>' + 
+'          <td style="padding: 4px 0;">Rp. ' + formatRupiah(TOTAL) + '</td>' + 
+'        </tr>' + 
+'        <tr>' + 
+'          <td style="padding: 4px 0;">Sisa Kurang/Lebih</td>' + 
+'          <td style="text-align: center;">:</td>' + 
+'          <td style="padding: 4px 0;">Rp. 0</td>' + 
+'        </tr>' + 
+'      </table>' + 
+'' + 
+'      <table style="width: 100%; border-collapse: collapse; font-family: \'Times New Roman\', Times, serif; font-size: 9.5pt; text-align: center; margin-top: 25px; line-height: 1.35;">' + 
+'        <tr>' + 
+'          <td style="width: 50%; vertical-align: top; text-align: left; padding-left: 40px;">' + 
+'            Mengetahui,<br>' + 
+'            PPKD' + 
+'            <br><br><br><br>' + 
+'            <strong>' + KADES + '</strong>' + 
+'          </td>' + 
+'          <td style="width: 50%; vertical-align: top; text-align: left; padding-left: 80px;">' + 
+'            <br>' + 
+'            PPKD' + 
+'            <br><br><br><br>' + 
+'            <strong>' + SEKDES + '</strong>' + 
+'          </td>' + 
+'        </tr>' + 
+'      </table>' + 
+'    </div>';
+  });
+
+  html += pagesHtml + 
+'</body>' + 
+'</html>';
+
+  return Utilities.newBlob(html, "text/html", "spj.html").getAs("application/pdf");
 }
 
 function updateConfigValue(key, value) {
@@ -1394,17 +2361,12 @@ function fixDataAlignment() {
 
 function uploadFile(base64Data, fileName, targetFolderId) {
   try {
-    // Check DriveApp explicitly
-    if (typeof DriveApp === 'undefined') {
-      throw new Error("DriveApp tidak terdeteksi. Otorisasi scope 'drive' mungkin diblokir atau belum diberikan.");
-    }
-
     const contentType = base64Data.substring(base64Data.indexOf(":") + 1, base64Data.indexOf(";"));
     const bytes = Utilities.base64Decode(base64Data.split(",")[1]);
     const blob = Utilities.newBlob(bytes, contentType, fileName);
     
     // Simpan ke folder yang sesuai (Desa spesifik atau default)
-    let folder;
+    let folder = null;
     if (targetFolderId && targetFolderId.trim() !== "") {
       try {
         folder = DriveApp.getFolderById(targetFolderId.trim());
@@ -1422,19 +2384,47 @@ function uploadFile(base64Data, fileName, targetFolderId) {
           folder = DriveApp.createFolder("Dokumentasi_SPPD");
         }
       } catch (e) {
-        throw new Error("Akses ditolak ke DriveApp. Pastikan Anda telah menjalankan fungsi 'initApp' (ATAU 'debugPermissions') di Editor GAS secara MANUAL dan memberikan izin akses Drive. Jika masih gagal, pastikan Anda telah men-Deploy sebagai 'NEW VERSION' setelah memberi izin.");
+        console.warn("Gagal membuat/membuka folder Dokumentasi_SPPD: " + e.message);
+        // Fallback ke Root Folder jika gagal
+        try {
+          folder = DriveApp.getRootFolder();
+        } catch (errRoot) {
+          throw new Error("Otorisasi Google Drive Diperlukan. Silakan jalankan fungsi 'mintaIzinGoogleDrive' di editor Google Apps Script terlebih dahulu.");
+        }
       }
     }
     
-    const file = folder.createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    if (!folder) {
+      throw new Error("Folder penyimpanan Google Drive tidak dapat ditemukan atau dibuat.");
+    }
     
-    // Dapatkan Direct Link untuk insert ke Doc (Thumbnail link / Export link kurang stabil)
-    // Kita gunakan link view, tapi UrlFetchApp biasanya butuh direct link jika bukan dari DriveApp internal
-    // Namun untuk insertInlineImage dari blob, ini sudah benar.
+    let file;
+    try {
+      file = folder.createFile(blob);
+    } catch (createFileErr) {
+      throw new Error("Gagal membuat file di Google Drive: " + createFileErr.message + ". Pastikan akun Anda memiliki izin menulis/edit pada folder tersebut.");
+    }
+    
+    // Atur sharing (opsional / hanya jika didukung oleh domain)
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (sharingError) {
+      console.warn("Domain melarang sharing ANYONE_WITH_LINK. Mencoba DOMAIN_WITH_LINK...: " + sharingError.message);
+      try {
+        file.setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.VIEW);
+      } catch (domainErr) {
+        console.warn("Domain melarang sharing DOMAIN_WITH_LINK: " + domainErr.message);
+      }
+    }
+    
     return { url: file.getDownloadUrl(), id: file.getId() };
   } catch (e) {
-    throw new Error("Gagal upload file: " + e.message);
+    // Memformat pesan kesalahan agar bersih dan mudah dipahami user
+    let cleanMessage = e.message;
+    if (cleanMessage.includes("Akses ditolak") || cleanMessage.includes("Access denied") || cleanMessage.includes("DriveApp")) {
+      cleanMessage = "Akses Google Drive Ditolak. Silakan buka editor Google Apps Script Anda, pilih fungsi 'mintaIzinGoogleDrive' di bagian atas, lalu klik 'Jalankan' untuk memberikan izin akses Google Drive.";
+    }
+    throw new Error("Gagal upload file: " + cleanMessage);
   }
 }
 

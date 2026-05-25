@@ -148,31 +148,31 @@ const Pegawai: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-on-surface-variant uppercase">Nama Lengkap</label>
-                  <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="p-2.5 border border-outline-variant rounded-lg outline-none focus:border-primary" placeholder="Nama..." />
+                  <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="p-3 bg-[#F4F6F9] border border-[#E2E8F0] rounded-xl outline-none focus:border-[#1B4F8A] focus:ring-1 focus:ring-[#1B4F8A] transition-all text-sm" placeholder="Nama..." />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-on-surface-variant uppercase">Jabatan</label>
-                  <input required value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="p-2.5 border border-outline-variant rounded-lg outline-none focus:border-primary" placeholder="Jabatan..." />
+                  <input required value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="p-3 bg-[#F4F6F9] border border-[#E2E8F0] rounded-xl outline-none focus:border-[#1B4F8A] focus:ring-1 focus:ring-[#1B4F8A] transition-all text-sm" placeholder="Jabatan..." />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-on-surface-variant uppercase">NIK</label>
-                  <input required value={formData.nik} onChange={e => setFormData({...formData, nik: e.target.value})} className="p-2.5 border border-outline-variant rounded-lg outline-none focus:border-primary" placeholder="NIK..." />
+                  <input required value={formData.nik} onChange={e => setFormData({...formData, nik: e.target.value})} className="p-3 bg-[#F4F6F9] border border-[#E2E8F0] rounded-xl outline-none focus:border-[#1B4F8A] focus:ring-1 focus:ring-[#1B4F8A] transition-all text-sm" placeholder="NIK..." />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-on-surface-variant uppercase">NIAP</label>
-                  <input value={formData.niap} onChange={e => setFormData({...formData, niap: e.target.value})} className="p-2.5 border border-outline-variant rounded-lg outline-none focus:border-primary" placeholder="NIAP..." />
+                  <input value={formData.niap} onChange={e => setFormData({...formData, niap: e.target.value})} className="p-3 bg-[#F4F6F9] border border-[#E2E8F0] rounded-xl outline-none focus:border-[#1B4F8A] focus:ring-1 focus:ring-[#1B4F8A] transition-all text-sm" placeholder="NIAP..." />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-on-surface-variant uppercase">Pangkat</label>
-                  <input value={formData.pangkat} onChange={e => setFormData({...formData, pangkat: e.target.value})} className="p-2.5 border border-outline-variant rounded-lg outline-none focus:border-primary" placeholder="Pangkat..." />
+                  <input value={formData.pangkat} onChange={e => setFormData({...formData, pangkat: e.target.value})} className="p-3 bg-[#F4F6F9] border border-[#E2E8F0] rounded-xl outline-none focus:border-[#1B4F8A] focus:ring-1 focus:ring-[#1B4F8A] transition-all text-sm" placeholder="Pangkat..." />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-on-surface-variant uppercase">Golongan</label>
-                  <input value={formData.golongan} onChange={e => setFormData({...formData, golongan: e.target.value})} className="p-2.5 border border-outline-variant rounded-lg outline-none focus:border-primary" placeholder="Golongan..." />
+                  <input value={formData.golongan} onChange={e => setFormData({...formData, golongan: e.target.value})} className="p-3 bg-[#F4F6F9] border border-[#E2E8F0] rounded-xl outline-none focus:border-[#1B4F8A] focus:ring-1 focus:ring-[#1B4F8A] transition-all text-sm" placeholder="Golongan..." />
                 </div>
                 <div className="flex flex-col gap-1.5 md:col-span-2">
                   <label className="text-[10px] font-bold text-on-surface-variant uppercase">Alamat</label>
-                  <input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="p-2.5 border border-outline-variant rounded-lg outline-none focus:border-primary" placeholder="Alamat..." />
+                  <input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="p-3 bg-[#F4F6F9] border border-[#E2E8F0] rounded-xl outline-none focus:border-[#1B4F8A] focus:ring-1 focus:ring-[#1B4F8A] transition-all text-sm" placeholder="Alamat..." />
                 </div>
               </div>
 
@@ -231,26 +231,26 @@ const Pegawai: React.FC = () => {
         {/* Table Content */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-[#fcfdff] text-on-surface">
+            <thead className="bg-[#F4F6F9] text-[#718096] text-[11px] font-bold uppercase tracking-wide">
               <tr>
-                <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] border-b border-outline-variant">No</th>
-                <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] border-b border-outline-variant">Nama</th>
-                <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] border-b border-outline-variant">NIK / NIAP</th>
-                <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] border-b border-outline-variant">Jabatan</th>
-                <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] border-b border-outline-variant">Alamat</th>
-                <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] border-b border-outline-variant text-right">Aksi</th>
+                <th className="p-4 border-b border-[#E2E8F0]">No</th>
+                <th className="p-4 border-b border-[#E2E8F0]">Nama</th>
+                <th className="p-4 border-b border-[#E2E8F0]">NIK / NIAP</th>
+                <th className="p-4 border-b border-[#E2E8F0]">Jabatan</th>
+                <th className="p-4 border-b border-[#E2E8F0]">Alamat</th>
+                <th className="p-4 border-b border-[#E2E8F0] text-right">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant/30 text-sm">
+            <tbody className="divide-y divide-[#E2E8F0] text-sm bg-white">
               {employees.map((emp, idx) => (
-                <tr key={emp.id} className="hover:bg-[#f8faff] transition-colors group">
+                <tr key={emp.id} className="hover:bg-[#1B4F8A]/5 transition-colors group">
                   <td className="p-4 tnum font-bold text-on-surface-variant">{idx + 1}</td>
                   <td className="p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-9 h-9 rounded-full bg-primary/5 flex items-center justify-center text-primary font-black text-xs border border-primary/10">
+                    <div className="flex items-center gap-4 font-sans">
+                      <div className="w-9 h-9 rounded-full bg-[#1B4F8A]/5 flex items-center justify-center text-[#1B4F8A] font-bold text-xs border border-[#1B4F8A]/10">
                         {emp.name.charAt(0)}
                       </div>
-                      <span className="font-black text-on-surface tracking-tight">{emp.name}</span>
+                      <span className="font-semibold text-[#1A202C] tracking-tight">{emp.name}</span>
                     </div>
                   </td>
                   <td className="p-4 text-on-surface-variant tnum">
@@ -259,10 +259,11 @@ const Pegawai: React.FC = () => {
                   </td>
                   <td className="p-4">
                     <span className={cn(
-                      "px-3 py-1 text-xs font-bold rounded-full border",
-                      emp.position.includes('Sekretaris') ? "bg-secondary-container text-on-secondary-container border-outline/20" :
-                      emp.position.includes('Bendahara') ? "bg-tertiary-fixed text-on-tertiary-fixed-variant border-outline/20" :
-                      "bg-surface-variant text-on-surface-variant border-outline/20"
+                      "px-3 py-1 text-xs font-medium rounded-full",
+                      emp.position.includes('Sekretaris') ? "bg-blue-50 text-[#1B4F8A]" :
+                      emp.position.includes('Bendahara') ? "bg-green-50 text-[#27AE60]" :
+                      emp.position.includes('Kepala') ? "bg-[#0F3460]/10 text-[#0F3460] font-semibold" :
+                      "bg-[#F4F6F9] text-[#718096]"
                     )}>
                       {emp.position}
                     </span>
