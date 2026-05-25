@@ -385,9 +385,11 @@ function getNextSPPDNumber() {
   
   let maxNum = 0;
   data.forEach(row => {
-    const numPart = String(row[1]).split('/')[0];
-    const n = parseInt(numPart);
-    if (!isNaN(n) && n > maxNum) maxNum = n;
+    const match = String(row[1]).match(/(\d+)/);
+    if (match) {
+      const n = parseInt(match[1]);
+      if (!isNaN(n) && n > maxNum) maxNum = n;
+    }
   });
   
   const nextNum = maxNum + 1;
@@ -396,7 +398,7 @@ function getNextSPPDNumber() {
   const month = now.getMonth() + 1;
   const romanMonth = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"][month];
   
-  return `${String(nextNum).padStart(3, '0')}/SPPD/${romanMonth}/${year}`;
+  return `Nomor : ${String(nextNum).padStart(3, '0')}/ST/${romanMonth}/${year}`;
 }
 
 function saveSPD(input) {
@@ -515,99 +517,178 @@ function generateDocument(sppdId, docType, extraData) {
   const fileName = `${docType}_${String(sppd.number || '').replace(/\//g, '_')}_${pCount}org`;
   
   // Folder PDF
-  let pdfFolder;
-  const pdfFolderId = config.folder_pdf_id;
-  if (pdfFolderId) {
-    try {
-      pdfFolder = DriveApp.getFolderById(pdfFolderId);
-    } catch(e) {
-      pdfFolder = DriveApp.getRootFolder();
-    }
-  } else {
-    // Cari atau buat folder "Arsip_PDF_SPPD"
-    const folders = DriveApp.getFoldersByName("Arsip_PDF_SPPD");
-    if (folders.hasNext()) {
-      pdfFolder = folders.next();
+  let pdfFolder = null;
+  try {
+    const pdfFolderId = config.folder_pdf_id;
+    if (pdfFolderId) {
+      try {
+        pdfFolder = DriveApp.getFolderById(pdfFolderId);
+      } catch(e) {
+        pdfFolder = DriveApp.getRootFolder();
+      }
     } else {
-      pdfFolder = DriveApp.createFolder("Arsip_PDF_SPPD");
+      // Cari atau buat folder "Arsip_PDF_SPPD"
+      const folders = DriveApp.getFoldersByName("Arsip_PDF_SPPD");
+      if (folders.hasNext()) {
+        pdfFolder = folders.next();
+      } else {
+        pdfFolder = DriveApp.createFolder("Arsip_PDF_SPPD");
+      }
+      // Update config folder id
+      updateConfigValue("folder_pdf_id", pdfFolder.getId());
     }
-    // Update config folder id
-    updateConfigValue("folder_pdf_id", pdfFolder.getId());
+  } catch (err) {
+    console.warn("DriveApp is inaccessible or unauthorized: " + err.message);
+    pdfFolder = null;
   }
+
+  // Helper to handle and recover from folder permission / write access issues
+  const createFileSafely = (targetFolder, blob, name, currentConfig) => {
+    if (!targetFolder) {
+      throw new Error("Folder target tidak tersedia.");
+    }
+    try {
+      return targetFolder.createFile(blob.setName(name + ".pdf"));
+    } catch (err) {
+      console.warn("Gagal menulis ke folder utama (hak akses terbatas): " + err.message);
+      try {
+        let fbFolder;
+        const folders = DriveApp.getFoldersByName("Arsip_PDF_SPPD");
+        if (folders.hasNext()) {
+          fbFolder = folders.next();
+        } else {
+          fbFolder = DriveApp.createFolder("Arsip_PDF_SPPD");
+        }
+        const file = fbFolder.createFile(blob.setName(name + ".pdf"));
+        // Update database configuration so future runs use the valid writable folder 
+        updateConfigValue("folder_pdf_id", fbFolder.getId());
+        return file;
+      } catch (err2) {
+        console.warn("Gagal menulis ke folder fallback: " + err2.message);
+        try {
+          const rootFolder = DriveApp.getRootFolder();
+          const file = rootFolder.createFile(blob.setName(name + ".pdf"));
+          updateConfigValue("folder_pdf_id", rootFolder.getId());
+          return file;
+        } catch (err3) {
+          throw new Error("Gagal menyimpan dokumen ke Google Drive. Pastikan izin Drive aktif. Detail: " + err3.message);
+        }
+      }
+    }
+  };
 
   // 1. HTML-to-PDF GENERATION FOR CORE TYPES
   if (docType === "Laporan") {
     try {
       const pdfBlob = generateHtmlToPdfLaporan(sppd, config);
-      const pdfFile = pdfFolder.createFile(pdfBlob.setName(fileName + ".pdf"));
-      pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      
-      const fileUrl = `https://drive.google.com/file/d/${pdfFile.getId()}/view?usp=sharing`;
-      
-      // CATAT KE SHEET ARSIP
-      const arsipSheet = getSS().getSheetByName("Arsip_Dokumen");
-      arsipSheet.appendRow([
-        Utilities.getUuid(),
-        sppd.number,
-        docType,
-        fileName + ".pdf",
-        timestamp,
-        fileUrl
-      ]);
-      
-      return fileUrl;
+      if (pdfFolder) {
+        const pdfFile = createFileSafely(pdfFolder, pdfBlob, fileName, config);
+        pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        
+        const fileUrl = `https://drive.google.com/file/d/${pdfFile.getId()}/view?usp=sharing`;
+        
+        // CATAT KE SHEET ARSIP
+        const arsipSheet = getSS().getSheetByName("Arsip_Dokumen");
+        if (arsipSheet) {
+          arsipSheet.appendRow([
+            Utilities.getUuid(),
+            sppd.number,
+            docType,
+            fileName + ".pdf",
+            timestamp,
+            fileUrl
+          ]);
+        }
+        return fileUrl;
+      } else {
+        const base64Data = Utilities.base64Encode(pdfBlob.getBytes());
+        return "data:application/pdf;base64," + base64Data;
+      }
     } catch (e) {
       console.error("HTML Laporan Error: " + e.message);
+      try {
+        const pdfBlob = generateHtmlToPdfLaporan(sppd, config);
+        const base64Data = Utilities.base64Encode(pdfBlob.getBytes());
+        return "data:application/pdf;base64," + base64Data;
+      } catch (e2) {
+        throw new Error(`Gagal membuat PDF Laporan: ${e.message}`);
+      }
     }
   }
 
   if (docType === "SPPD") {
     try {
       const pdfBlob = generateHtmlToPdfSPPD(sppd, config);
-      const pdfFile = pdfFolder.createFile(pdfBlob.setName(fileName + ".pdf"));
-      pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      
-      const fileUrl = `https://drive.google.com/file/d/${pdfFile.getId()}/view?usp=sharing`;
-      
-      // CATAT KE SHEET ARSIP
-      const arsipSheet = getSS().getSheetByName("Arsip_Dokumen");
-      arsipSheet.appendRow([
-        Utilities.getUuid(),
-        sppd.number,
-        docType,
-        fileName + ".pdf",
-        timestamp,
-        fileUrl
-      ]);
-      
-      return fileUrl;
+      if (pdfFolder) {
+        const pdfFile = createFileSafely(pdfFolder, pdfBlob, fileName, config);
+        pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        
+        const fileUrl = `https://drive.google.com/file/d/${pdfFile.getId()}/view?usp=sharing`;
+        
+        // CATAT KE SHEET ARSIP
+        const arsipSheet = getSS().getSheetByName("Arsip_Dokumen");
+        if (arsipSheet) {
+          arsipSheet.appendRow([
+            Utilities.getUuid(),
+            sppd.number,
+            docType,
+            fileName + ".pdf",
+            timestamp,
+            fileUrl
+          ]);
+        }
+        return fileUrl;
+      } else {
+        const base64Data = Utilities.base64Encode(pdfBlob.getBytes());
+        return "data:application/pdf;base64," + base64Data;
+      }
     } catch (e) {
       console.error("HTML SPPD Error: " + e.message);
+      try {
+        const pdfBlob = generateHtmlToPdfSPPD(sppd, config);
+        const base64Data = Utilities.base64Encode(pdfBlob.getBytes());
+        return "data:application/pdf;base64," + base64Data;
+      } catch (e2) {
+        throw new Error(`Gagal membuat PDF SPPD / Surat Tugas: ${e.message}`);
+      }
     }
   }
 
   if (docType === "SPJ") {
     try {
       const pdfBlob = generateHtmlToPdfSPJ(sppd, config);
-      const pdfFile = pdfFolder.createFile(pdfBlob.setName(fileName + ".pdf"));
-      pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      
-      const fileUrl = `https://drive.google.com/file/d/${pdfFile.getId()}/view?usp=sharing`;
-      
-      // CATAT KE SHEET ARSIP
-      const arsipSheet = getSS().getSheetByName("Arsip_Dokumen");
-      arsipSheet.appendRow([
-        Utilities.getUuid(),
-        sppd.number,
-        docType,
-        fileName + ".pdf",
-        timestamp,
-        fileUrl
-      ]);
-      
-      return fileUrl;
+      if (pdfFolder) {
+        const pdfFile = createFileSafely(pdfFolder, pdfBlob, fileName, config);
+        pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        
+        const fileUrl = `https://drive.google.com/file/d/${pdfFile.getId()}/view?usp=sharing`;
+        
+        // CATAT KE SHEET ARSIP
+        const arsipSheet = getSS().getSheetByName("Arsip_Dokumen");
+        if (arsipSheet) {
+          arsipSheet.appendRow([
+            Utilities.getUuid(),
+            sppd.number,
+            docType,
+            fileName + ".pdf",
+            timestamp,
+            fileUrl
+          ]);
+        }
+        return fileUrl;
+      } else {
+        const base64Data = Utilities.base64Encode(pdfBlob.getBytes());
+        return "data:application/pdf;base64," + base64Data;
+      }
     } catch (e) {
       console.error("HTML SPJ Error: " + e.message);
+      try {
+        const pdfBlob = generateHtmlToPdfSPJ(sppd, config);
+        const base64Data = Utilities.base64Encode(pdfBlob.getBytes());
+        return "data:application/pdf;base64," + base64Data;
+      } catch (e2) {
+        throw new Error(`Gagal membuat PDF SPJ: ${e.message}`);
+      }
     }
   }
 

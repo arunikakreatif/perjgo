@@ -20,7 +20,7 @@ import {
 import { gasService } from '../services/gasService';
 import { generateNarrative } from '../services/aiService';
 import { SPPD } from '../types';
-import { cn } from '../lib/utils';
+import { cn, handleDocumentUrl } from '../lib/utils';
 
 const Laporan: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -160,10 +160,7 @@ const Laporan: React.FC = () => {
         gasService.generateDocument(enrichedData.id, 'Laporan', enrichedData)
           .then(url => {
             setPrinting(false);
-            const newWin = window.open(url, '_blank');
-            if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
-              window.location.href = url;
-            }
+            handleDocumentUrl(url, 'Laporan', enrichedData.number || enrichedData.id);
             setTimeout(() => {
               setSelectedSPPD(null);
             }, 2000);
@@ -479,10 +476,7 @@ const Laporan: React.FC = () => {
                               gasService.generateDocument(item.id, 'Laporan', enriched)
                                 .then(url => {
                                   setPrinting(false);
-                                  const newWin = window.open(url, '_blank');
-                                  if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
-                                    window.location.href = url;
-                                  }
+                                  handleDocumentUrl(url, 'Laporan', item.number || item.id);
                                 })
                                 .catch(err => {
                                   setPrinting(false);

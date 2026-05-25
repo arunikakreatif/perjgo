@@ -136,7 +136,7 @@ const mockFallback = (name: string, args: any[], resolve: any, reject: any) => {
       sppd: [
         { 
           id: '1', 
-          number: '094/SPPD/2023', 
+          number: 'Nomor : 094/ST/V/2023', 
           employeeNames: ['Haryanto Nugroho'], 
           employeeIds: ['emp1', '', '', '', ''],
           purpose: 'Koordinasi Anggaran Desa 2024', 
@@ -268,7 +268,7 @@ const mockFallback = (name: string, args: any[], resolve: any, reject: any) => {
         }
         break;
       case 'getNextSPPDNumber':
-        resolve(`00${data.sppd.length + 1}/SPPD/V/2026`);
+        resolve(`Nomor : 00${data.sppd.length + 1}/ST/V/2026`);
         break;
       case 'generateDocument':
         console.log(`Mock Document Generation for SPPD ${args[0]} of type ${args[1]}`);

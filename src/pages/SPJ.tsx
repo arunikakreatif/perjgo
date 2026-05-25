@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { gasService } from '../services/gasService';
 import { SPPD } from '../types';
-import { cn } from '../lib/utils';
+import { cn, handleDocumentUrl } from '../lib/utils';
 
 const SPJ: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -105,10 +105,7 @@ const SPJ: React.FC = () => {
         gasService.generateDocument(enrichedData.id, 'SPJ', enrichedData)
           .then(url => {
             setPrinting(false);
-            const newWin = window.open(url, '_blank');
-            if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
-              window.location.href = url;
-            }
+            handleDocumentUrl(url, 'SPJ', enrichedData.number || enrichedData.id);
             setTimeout(() => {
               setSelectedSPPD(null);
             }, 2000);
@@ -352,10 +349,7 @@ const SPJ: React.FC = () => {
                               gasService.generateDocument(item.id, 'SPJ', enriched)
                                 .then(url => {
                                   setPrinting(false);
-                                  const newWin = window.open(url, '_blank');
-                                  if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
-                                    window.location.href = url;
-                                  }
+                                  handleDocumentUrl(url, 'SPJ', item.number || item.id);
                                 })
                                 .catch(err => {
                                   setPrinting(false);

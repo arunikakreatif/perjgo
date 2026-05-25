@@ -23,7 +23,7 @@ import {
   Sparkles,
   ClipboardList
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, handleDocumentUrl } from '../lib/utils';
 import { SPPD, Employee } from '../types';
 import { gasService } from '../services/gasService';
 import { generateNarrative } from '../services/aiService';
@@ -163,11 +163,7 @@ const SPPDPage: React.FC = () => {
     gasService.generateDocument(id, type, enrichedData)
       .then(url => {
         setPrintingId(null);
-        const newWin = window.open(url, '_blank');
-        if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
-          // Fallback: If blocked by popup blocker, redirect to open directly
-          window.location.href = url;
-        }
+        handleDocumentUrl(url, type, item.number || id);
       })
       .catch(err => {
         setPrintingId(null);
@@ -686,7 +682,7 @@ const SPPDPage: React.FC = () => {
                       value={formData.number}
                       onChange={e => setFormData({...formData, number: e.target.value})}
                       className="p-3 bg-surface border border-outline-variant rounded-xl outline-none focus:border-primary transition-all font-mono" 
-                      placeholder="Contoh: 094/SPPD/2026" 
+                      placeholder="Contoh: Nomor : 094/ST/V/2026" 
                     />
                   </div>
                    <div className="flex flex-col gap-2">

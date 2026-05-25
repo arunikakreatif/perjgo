@@ -70,9 +70,65 @@ const Dashboard: React.FC<DashboardProps> = ({ onPageChange }) => {
   useEffect(() => {
     Promise.all([
       gasService.getDashboardStats(),
+      gasService.getSPDList(),
+      gasService.getPegawai(),
       gasService.getConfig()
-    ]).then(([statsData, configData]) => {
-      setStats(statsData);
+    ]).then(([statsData, sppdList, pegawaiList, configData]) => {
+      // Calculate dynamic counts based on actual real-time data
+      const totalPegawai = pegawaiList.length;
+      const totalSppd = sppdList.length;
+      const totalLaporan = sppdList.filter(s => s.laporan1 && s.laporan1.trim() !== '').length;
+      // SPJ Belum is the count of SPPDs where SPJ hasn't been filled (uangHarian is empty or 0)
+      const totalSpjBelum = sppdList.filter(s => !s.uangHarian || s.uangHarian === 0).length;
+
+      // Extract and build real-time dynamic activities in reverse chronological order
+      // (The newest rows are at the end, so we reverse to process newest first)
+      const derivedActivities: any[] = [];
+      const reversed = [...sppdList].reverse();
+
+      reversed.forEach(item => {
+        // 1. SPJ Selesai (if completed) — is the latest action for an SPPD
+        if (item.uangHarian && item.uangHarian > 0) {
+          derivedActivities.push({
+            id: `spj-${item.id}`,
+            title: `SPJ Selesai: ${item.number}`,
+            subtitle: `Rincian biaya SPJ telah diinput lengkap untuk ${item.employeeNames?.[0] || 'Pegawai'}.`,
+            status: 'Selesai',
+            type: 'SPJ'
+          });
+        }
+        
+        // 2. Laporan Selesai (if completed)
+        if (item.laporan1 && item.laporan1.trim() !== '') {
+          derivedActivities.push({
+            id: `laporan-${item.id}`,
+            title: `Laporan Dinas Selesai: ${item.number}`,
+            subtitle: `Hasil perjalanan dinas ke ${item.destination} telah dilaporkan.`,
+            status: 'Baru',
+            type: 'Laporan'
+          });
+        }
+
+        // 3. Penerbitan SPPD (done for all SPPDs in the list)
+        derivedActivities.push({
+          id: `sppd-${item.id}`,
+          title: `Penerbitan SPPD: ${item.number}`,
+          subtitle: `Perjalanan ke ${item.destination} untuk ${item.employeeNames?.join(', ') || 'Pegawai'}.`,
+          status: 'Selesai',
+          type: 'SPPD'
+        });
+      });
+
+      const finalStats = {
+        ...statsData,
+        pegawai: totalPegawai,
+        sppd: totalSppd,
+        laporan: totalLaporan,
+        spj: totalSpjBelum,
+        recentActivities: derivedActivities.slice(0, 6) // Display the 6 most recent activities
+      };
+
+      setStats(finalStats);
       setConfig(configData);
       setLoading(false);
     }).catch(err => {
@@ -175,13 +231,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onPageChange }) => {
                   <div 
                     key={activity.id} 
                     onClick={() => {
-                      if (activity.type === 'SPPD' || activity.type === 'Laporan') onPageChange('sppd');
+                      if (activity.type === 'SPPD') onPageChange('sppd');
+                      if (activity.type === 'Laporan') onPageChange('laporan');
                       if (activity.type === 'SPJ') onPageChange('spj');
                     }}
                     className="p-4 flex items-center gap-4 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer group"
                   >
                     <div className="w-10 h-10 bg-surface-container-high rounded-lg flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                       {activity.type === 'SPPD' ? <BadgeCheck size={20} /> : activity.type === 'SPJ' ? <ClipboardList size={20} /> : <FileText size={20} />}
+                       {activity.type === 'SPPD' ? <BadgeCheck size={20} className="text-green-600" /> : activity.type === 'SPJ' ? <ClipboardList size={20} className="text-[#1B4F8A]" /> : <FileText size={20} className="text-cyan-600" />}
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-bold text-on-surface truncate">{activity.title}</p>
@@ -190,8 +247,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onPageChange }) => {
                     <span className={cn(
                       "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
                       activity.type === 'SPPD' ? "bg-green-100 text-green-800" : 
-                      activity.type === 'SPJ' ? "bg-primary/10 text-primary" : 
-                      "bg-primary/10 text-primary"
+                      activity.type === 'SPJ' ? "bg-purple-100 text-purple-800" : 
+                      "bg-cyan-100 text-cyan-800"
                     )}>
                       {activity.status}
                     </span>
