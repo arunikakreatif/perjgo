@@ -44,7 +44,7 @@ const Laporan: React.FC = () => {
       gasService.getConfig()
     ])
       .then(([arsipData, sppdData, configData]) => {
-        setArsip(arsipData.reverse());
+        setArsip([...arsipData].reverse());
         setSppdList(sppdData);
         setConfig(configData);
         setLoading(false);
