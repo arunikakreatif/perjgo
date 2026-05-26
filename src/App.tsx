@@ -1,15 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Layout } from './components/Layout';
-import Dashboard from './pages/Dashboard';
-import Pegawai from './pages/Pegawai';
-import SPPD from './pages/SPPD';
-import Laporan from './pages/Laporan';
-import SPJ from './pages/SPJ';
-import Konfigurasi from './pages/Konfigurasi';
-import About from './pages/About';
 import Login from './pages/Login';
 import { Page } from './types';
 import { gasService } from './services/gasService';
+
+// Lazy load pages to prevent any individual module crash (such as Recharts rendering issues in React 19)
+// from throwing runtime errors during the app's initial script evaluation.
+// This guarantees that the Login page and loading skeletons will always load correctly.
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Pegawai = lazy(() => import('./pages/Pegawai'));
+const SPPD = lazy(() => import('./pages/SPPD'));
+const Laporan = lazy(() => import('./pages/Laporan'));
+const SPJ = lazy(() => import('./pages/SPJ'));
+const Konfigurasi = lazy(() => import('./pages/Konfigurasi'));
+const About = lazy(() => import('./pages/About'));
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
@@ -103,7 +107,13 @@ export default function App() {
   return (
     <>
       <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
-        {renderPage()}
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-[50vh]">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        }>
+          {renderPage()}
+        </Suspense>
       </Layout>
     </>
   );
