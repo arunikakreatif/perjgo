@@ -5,7 +5,7 @@ import { Employee, SPPD } from '../types';
  * As requested, uses google.script.run for all backend calls.
  */
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbz05_k6u7Gs_XFKEwGnHXQNbCINj1OaB1hXxj3pCf69ewgcvcYoYH_u5KhcC3Q6DXVMgQ/exec';
+const GAS_URL = import.meta.env.VITE_GAS_URL || 'https://script.google.com/macros/s/AKfycbz05_k6u7Gs_XFKEwGnHXQNbCINj1OaB1hXxj3pCf69ewgcvcYoYH_u5KhcC3Q6DXVMgQ/exec';
 
 export interface TenantInfo {
   villageName: string;
@@ -15,8 +15,15 @@ export interface TenantInfo {
 }
 
 const getStoredTenant = (): TenantInfo | null => {
-  const json = localStorage.getItem('perjadin_tenant');
-  return json ? JSON.parse(json) : null;
+  try {
+    const json = localStorage.getItem('perjadin_tenant');
+    if (!json || json === 'undefined') return null;
+    return JSON.parse(json);
+  } catch (e) {
+    console.warn("Failed to parse tenant info, clearing storage:", e);
+    localStorage.removeItem('perjadin_tenant');
+    return null;
+  }
 };
 
 export const logout = () => {
@@ -112,8 +119,12 @@ Aplikasi tidak bisa menyimpan file karena belum mendapatkan izin Google Drive.
 // Fallback logic for AI Studio Preview
 const mockFallback = (name: string, args: any[], resolve: any, reject: any) => {
   const getMockData = () => {
-    const stored = localStorage.getItem('perjadin_mock_data');
-    if (stored) return JSON.parse(stored);
+    try {
+      const stored = localStorage.getItem('perjadin_mock_data');
+      if (stored && stored !== 'undefined') return JSON.parse(stored);
+    } catch (e) {
+      console.warn("Failed to parse mock data:", e);
+    }
     
     const initial = {
       stats: {
