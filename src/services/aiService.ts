@@ -1,6 +1,16 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiInstance: GoogleGenAI | null = null;
+
+const getAI = (): GoogleGenAI => {
+  if (!aiInstance) {
+    const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+                   (typeof process !== 'undefined' ? process?.env?.GEMINI_API_KEY : '') || 
+                   '';
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+};
 
 export interface NarrativeInput {
   maksud: string;
@@ -32,7 +42,7 @@ export const generateNarrative = async (input: NarrativeInput): Promise<Narrativ
 
     Gunakan bahasa Indonesia yang formal, sopan, dan sesuai standar kedinasan (EYD).`;
 
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
