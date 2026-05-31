@@ -1208,6 +1208,13 @@ function generateHtmlToPdfLaporan(sppd, config) {
     }
   }
 
+  // Generate QR Code verification seal
+  const qrNomor = sppd.number || "-";
+  const qrDesa = (config.nama_desa || "").replace(/Desa\s+/i, "").trim();
+  const qrText = "Dokumen Verifikasi Digital\nSistem: perjadinGO (Sistem SPPD & SPJ Desa)\nTipe: Laporan Perjalanan Dinas\nNomor: " + qrNomor + "\nDesa: " + qrDesa + "\nStatus: TERVERIFIKASI SAH";
+  const qrUrlInput = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" + encodeURIComponent(qrText);
+  const qrBase64 = getBase64FromUrl(qrUrlInput);
+
   let html = `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -1229,6 +1236,45 @@ function generateHtmlToPdfLaporan(sppd, config) {
       flex-direction: column;
       background: white;
       box-sizing: border-box;
+    }
+
+    .qr-verifikasi {
+      position: absolute;
+      bottom: 8mm;
+      left: 15mm;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #c3c3c3;
+      padding: 4px;
+      border-radius: 4px;
+      background: #fafafa;
+    }
+    .qr-img {
+      width: 48px;
+      height: 48px;
+    }
+    .qr-text {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .qr-label {
+      font-family: Arial, sans-serif;
+      font-size: 6.5pt;
+      font-weight: bold;
+      color: #1a5632;
+      letter-spacing: 0.5px;
+      margin: 0;
+      padding: 0;
+    }
+    .qr-desc {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 6pt;
+      color: #444;
+      line-height: 1.1;
+      margin-top: 2px;
     }
 
     /* Page break for printing */
@@ -1485,6 +1531,14 @@ function generateHtmlToPdfLaporan(sppd, config) {
         </td>
       </tr>
     </table>
+    <!-- QR Verifikasi Keabsahan -->
+    <div class="qr-verifikasi">
+      <img class="qr-img" src="${qrBase64}" alt="QR Verifikasi">
+      <div class="qr-text">
+        <div class="qr-label">TERVERIFIKASI DIGITAL</div>
+        <div class="qr-desc">Scan QR Code untuk verifikasi<br>keabsahan dokumen ini.</div>
+      </div>
+    </div>
   </div>`;
 
     // Halaman Dokumentasi
@@ -1642,6 +1696,11 @@ function generateHtmlToPdfSPPD(sppd, config) {
       logoDesaUrl = fetched;
     }
   }
+
+  // Generate QR Code verification seal
+  const qrText = "Dokumen Verifikasi Digital\nSistem: perjadinGO (Sistem SPPD & SPJ Desa)\nTipe: Surat Perjalanan Dinas / Surat Tugas\nNomor: " + NOMOR + "\nDesa: " + DESA + "\nStatus: TERVERIFIKASI SAH";
+  const qrUrlInput = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" + encodeURIComponent(qrText);
+  const qrBase64 = getBase64FromUrlShared(qrUrlInput);
 
   // Master Kop Surat Component (Page 1 ONLY)
   const kopSuratHtml = `
@@ -1806,6 +1865,15 @@ function generateHtmlToPdfSPPD(sppd, config) {
           </td>
         </tr>
       </table>
+    </div>
+
+    <!-- QR Verifikasi Keabsahan -->
+    <div class="qr-verifikasi">
+      <img class="qr-img" src="${qrBase64}" alt="QR Verifikasi">
+      <div class="qr-text">
+        <div class="qr-label">TERVERIFIKASI DIGITAL</div>
+        <div class="qr-desc">Scan QR Code untuk verifikasi<br>keabsahan dokumen ini.</div>
+      </div>
     </div>
   </div>`;
 
@@ -1983,6 +2051,15 @@ function generateHtmlToPdfSPPD(sppd, config) {
     <div style="font-size: 7.5pt; line-height: 1.25; border: 1.5px solid black; border-top: none; padding: 4px 6px; text-align: justify; font-family: 'Times New Roman', Times, serif;">
       Pejabat yang berwenang menerbitkan SPD, perangkat yang melakukan perjalanan dinas, para pejabat yang mengesahkan tanggal berangkat/tiba serta Bendaharawan,  bertanggung jawab berdasarkan peraturan peraturan Keuangan Negara apabila Negara mendapat rugi akibat kesalahan/kealpaannya.
     </div>
+
+    <!-- QR Verifikasi Keabsahan -->
+    <div class="qr-verifikasi">
+      <img class="qr-img" src="${qrBase64}" alt="QR Verifikasi">
+      <div class="qr-text">
+        <div class="qr-label">TERVERIFIKASI DIGITAL</div>
+        <div class="qr-desc">Scan QR Code untuk verifikasi<br>keabsahan dokumen ini.</div>
+      </div>
+    </div>
   </div>`;
   });
 
@@ -2010,6 +2087,45 @@ function generateHtmlToPdfSPPD(sppd, config) {
       box-sizing: border-box;
       page-break-after: always;
       break-after: page;
+    }
+
+    .qr-verifikasi {
+      position: absolute;
+      bottom: 8mm;
+      left: 15mm;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #c3c3c3;
+      padding: 4px;
+      border-radius: 4px;
+      background: #fafafa;
+    }
+    .qr-img {
+      width: 48px;
+      height: 48px;
+    }
+    .qr-text {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .qr-label {
+      font-family: Arial, sans-serif;
+      font-size: 6.5pt;
+      font-weight: bold;
+      color: #1a5632;
+      letter-spacing: 0.5px;
+      margin: 0;
+      padding: 0;
+    }
+    .qr-desc {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 6pt;
+      color: #444;
+      line-height: 1.1;
+      margin-top: 2px;
     }
     .halaman:last-of-type {
       page-break-after: auto;
@@ -2148,6 +2264,11 @@ function generateHtmlToPdfSPJ(sppd, config) {
   const TGL_BERANGKAT = formatDateIndo(sppd.dateStart);
   const TGL_KEMBALI = formatDateIndo(sppd.dateEnd);
   const TGL_BAYAR = sppd.tglBayar ? formatDateIndo(sppd.tglBayar) : formatDateIndo(sppd.dateEnd);
+
+  // Generate QR Code verification seal
+  const qrText = "Dokumen Verifikasi Digital\nSistem: perjadinGO (Sistem SPPD & SPJ Desa)\nTipe: Surat Pertanggungjawaban (SPJ) / Bukti Kwitansi\nNomor: " + NOMOR + "\nDesa: " + DESA + "\nStatus: TERVERIFIKASI SAH";
+  const qrUrlInput = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" + encodeURIComponent(qrText);
+  const qrBase64 = getBase64FromUrlShared(qrUrlInput);
   
   const TUJUAN = sppd.destination;
   const MAKSUD = sppd.purpose;
@@ -2239,6 +2360,44 @@ function generateHtmlToPdfSPJ(sppd, config) {
 '      margin-bottom: 8px;' + 
 '      flex-shrink: 0;' + 
 '    }' + 
+'    .qr-verifikasi {' +
+'      position: absolute;' +
+'      bottom: 8mm;' +
+'      left: 15mm;' +
+'      display: flex;' +
+'      flex-direction: row;' +
+'      align-items: center;' +
+'      gap: 6px;' +
+'      border: 1px solid #c3c3c3;' +
+'      padding: 4px;' +
+'      border-radius: 4px;' +
+'      background: #fafafa;' +
+'    }' +
+'    .qr-img {' +
+'      width: 48px;' +
+'      height: 48px;' +
+'    }' +
+'    .qr-text {' +
+'      display: flex;' +
+'      flex-direction: column;' +
+'      justify-content: center;' +
+'    }' +
+'    .qr-label {' +
+'      font-family: Arial, sans-serif;' +
+'      font-size: 6.5pt;' +
+'      font-weight: bold;' +
+'      color: #1a5632;' +
+'      letter-spacing: 0.5px;' +
+'      margin: 0;' +
+'      padding: 0;' +
+'    }' +
+'    .qr-desc {' +
+'      font-family: "Times New Roman", Times, serif;' +
+'      font-size: 6pt;' +
+'      color: #444;' +
+'      line-height: 1.1;' +
+'      margin-top: 2px;' +
+'    }' +
 '  </style>' + 
 '</head>' + 
 '<body>';
@@ -2372,6 +2531,13 @@ function generateHtmlToPdfSPJ(sppd, config) {
 '          </td>' + 
 '        </tr>' + 
 '      </table>' + 
+'      <div class="qr-verifikasi">' +
+'        <img class="qr-img" src="' + qrBase64 + '" alt="QR Verifikasi">' +
+'        <div class="qr-text">' +
+'          <div class="qr-label">TERVERIFIKASI DIGITAL</div>' +
+'          <div class="qr-desc">Scan QR Code untuk verifikasi<br>keabsahan dokumen ini.</div>' +
+'        </div>' +
+'      </div>' +
 '    </div>';
   });
 
